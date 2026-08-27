@@ -1,8 +1,8 @@
-<%# locals: (claimed_executions:, show_process: true) %>
+<%# locals: (claimed_executions:, show_process: true, title: "Jobs in progress") %>
 <div class="<%= card_classes %>">
   <div class="<%= card_header_classes %>">
     <h2 class="text-sm font-semibold">
-      Jobs in progress <span class="ml-1 text-slate-400">(<%= number claimed_executions.size %>)</span>
+      <%= title %> <span class="ml-1 text-slate-400">(<%= number claimed_executions.size %>)</span>
     </h2>
   </div>
 
@@ -53,6 +53,9 @@
       </table>
     </div>
   <% else %>
-    <%= render "solid_queue_panel/shared/empty_state", title: "Nothing is running right now", icon_name: "bolt" %>
+    <%= render "solid_queue_panel/shared/empty_state",
+               title: "Nothing is running right now",
+               description: "Jobs show up here the moment a worker claims them.",
+               icon_name: "bolt" %>
   <% end %>
 </div>

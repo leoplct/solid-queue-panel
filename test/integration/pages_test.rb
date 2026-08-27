@@ -21,7 +21,14 @@ class PagesTest < SolidQueuePanel::IntegrationTestCase
     assert_response :success
     assert_select "h2", text: /Capacity/
     assert_select "a", text: "reports"
-    assert_select "a", text: /BrokenJob/
+  end
+
+  test "dashboard lists the jobs being processed right now" do
+    get panel.root_path
+
+    assert_response :success
+    assert_select "h2", text: /Processing/
+    assert_select "a[href=?]", panel.job_path(@in_progress)
   end
 
   test "metrics page charts the throughput" do

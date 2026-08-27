@@ -125,7 +125,7 @@ config.read_only = true   # hides and refuses retry, discard, pause, resume, cle
 
 | Page | What it shows |
 | --- | --- |
-| **Dashboard** | The [capacity table](#capacity-and-eta): for every queue, the threads that can work on it, what they are running right now, what is pending, when it was last added to, and when it will be empty — plus retries, scheduled and dead jobs. Along with alerts when something is silently wrong (no worker running, dead processes, paused queues, wrong Active Job adapter), the running processes and the latest failures. |
+| **Dashboard** | The [capacity table](#capacity-and-eta): for every queue, the threads that can work on it, what they are running right now, what is pending, when it was last added to, and when it will be empty — plus retries, scheduled and dead jobs. Along with every job being processed right now, and alerts when something is silently wrong: no worker running, dead processes, paused queues, a different Active Job adapter. |
 | **Processes** | Supervisors with their workers, dispatchers and schedulers: queues polled, thread pool size and how much of it is busy, polling interval, heartbeat, and every job currently running. Dead processes can be pruned from here. |
 | **Queues** | Per queue counters and a backlog bar broken down by state, plus latency — how long the oldest job has been waiting. Queues can be paused, resumed and cleared. |
 | **Queue detail** | The jobs of a single queue, filtered by state: the fastest way to answer "what is stuck in this queue?". |
