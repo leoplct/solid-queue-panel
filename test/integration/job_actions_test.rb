@@ -64,6 +64,39 @@ class JobActionsTest < SolidQueuePanel::IntegrationTestCase
     assert_equal 0, SolidQueue::Job.count
   end
 
+  test "the duplicates page counts what would be discarded before anything is" do
+    kept = create_job(class_name: "ReportJob", arguments: [ 7 ])
+    2.times { create_job(class_name: "ReportJob", arguments: [ 7 ]) }
+
+    get panel.duplicates_jobs_path
+
+    assert_response :success
+    assert_select "h2", text: /2 jobs would be discarded/
+    assert_select "a[href=?]", panel.job_path(kept), text: "##{kept.id}"
+    assert_select "form[action=?]", panel.remove_duplicates_jobs_path(status: "queued")
+    assert_equal 3, SolidQueue::Job.count, "counting changes nothing"
+  end
+
+  test "the duplicates page can be scoped to one queue" do
+    2.times { create_job(queue_name: "reports", arguments: [ 7 ]) }
+    2.times { create_job(queue_name: "mailers", arguments: [ 7 ]) }
+
+    get panel.duplicates_jobs_path(queue_name: "reports")
+
+    assert_response :success
+    assert_select "h2", text: /1 job would be discarded/
+    assert_select "form[action=?]", panel.remove_duplicates_jobs_path(queue_name: "reports", status: "queued")
+  end
+
+  test "the duplicates page says when there is nothing to do" do
+    create_job(arguments: [ 1 ])
+
+    get panel.duplicates_jobs_path
+
+    assert_response :success
+    assert_select "h2", text: /Nothing to discard/
+  end
+
   test "removing duplicates keeps the first copy of each queued job" do
     kept = create_job(class_name: "ReportJob", arguments: [ 7 ])
     duplicate = create_job(class_name: "ReportJob", arguments: [ 7 ])
@@ -71,6 +104,7 @@ class JobActionsTest < SolidQueuePanel::IntegrationTestCase
 
     post panel.remove_duplicates_jobs_path(status: "queued")
 
+    assert_redirected_to panel.jobs_path(status: "queued")
     assert_equal "Discarded 1 duplicate job: 3 queued jobs scanned.", flash[:notice]
     assert_equal [ kept.id, other.id ].sort, SolidQueue::Job.pluck(:id).sort
     assert_not SolidQueue::Job.exists?(duplicate.id)

@@ -25,8 +25,9 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   over time, the resource cost of each job class, and advice on how many
   processes and threads the machine can take. Opt in with
   `bin/rails generate solid_queue_panel:resource_metrics`.
-- "Remove duplicates" on the queued tab, which discards jobs that are an exact
-  copy of an earlier one.
+- "Remove duplicates" on the queued tab, which counts the exact copies of an
+  earlier job on a page of its own, shows what they are copies of, and discards
+  them once confirmed.
 - Throughput chart of jobs enqueued, finished and failed, with arrival and
   completion rates, on the metrics page.
 - Health alerts for the things that are silently wrong: no worker running, dead

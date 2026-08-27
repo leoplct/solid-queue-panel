@@ -101,6 +101,55 @@ module SolidQueuePanel
       assert_equal 1, SolidQueue::Semaphore.find_by(key: "imports").value, "the slot should be given back"
     end
 
+    test "the preview counts the copies without discarding anything" do
+      3.times { create_job(class_name: "ReportJob", queue_name: "reports", arguments: [ 42 ]) }
+      2.times { create_job(class_name: "MailerJob", queue_name: "reports", arguments: [ 7 ]) }
+      create_job(class_name: "ReportJob", queue_name: "reports", arguments: [ 99 ])
+
+      preview = DuplicateJobs.new.preview
+
+      assert_predicate preview, :any?
+      assert_equal 3, preview.count, "two copies of the first job and one of the second"
+      assert_equal 6, preview.scanned
+      assert_equal 6, SolidQueue::Job.count, "nothing is discarded by a preview"
+      assert_not preview.capped?
+      assert_not preview.partial_list?
+    end
+
+    test "the preview says what each group is and which job stays" do
+      kept = create_job(class_name: "ReportJob", queue_name: "reports", arguments: [ 42 ])
+      2.times { create_job(class_name: "ReportJob", queue_name: "reports", arguments: [ 42 ]) }
+
+      group = DuplicateJobs.new.preview.groups.sole
+
+      assert_equal "ReportJob", group.class_name
+      assert_equal "reports", group.queue_name
+      assert_equal [ 42 ], group.arguments
+      assert_equal kept.id, group.kept_job_id
+      assert_equal 2, group.discarded
+      assert_equal 3, group.total
+    end
+
+    test "the preview of a queue only looks at that queue" do
+      2.times { create_job(queue_name: "reports", arguments: [ 1 ]) }
+      2.times { create_job(queue_name: "mailers", arguments: [ 1 ]) }
+
+      preview = DuplicateJobs.new(queue_name: "reports").preview
+
+      assert_equal 1, preview.count
+      assert_equal 2, preview.scanned
+    end
+
+    test "a preview with nothing to discard says so" do
+      2.times { |index| create_job(arguments: [ index ]) }
+
+      preview = DuplicateJobs.new.preview
+
+      assert_not preview.any?
+      assert_equal 0, preview.count
+      assert_empty preview.groups
+    end
+
     test "reports how many jobs were scanned when nothing is duplicated" do
       2.times { |index| create_job(arguments: [ index ]) }
 

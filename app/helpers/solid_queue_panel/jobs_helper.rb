@@ -48,10 +48,13 @@ module SolidQueuePanel
     # Just the positional arguments the job was enqueued with, which is what you
     # usually want to see in a list.
     def job_arguments_summary(job, limit: 120)
-      arguments = job.arguments.is_a?(Hash) ? job.arguments["arguments"] : nil
+      arguments_summary(job.arguments.is_a?(Hash) ? job.arguments["arguments"] : nil, limit: limit)
+    end
+
+    def arguments_summary(arguments, limit: 120)
       return if arguments.blank?
 
-      truncate(arguments.map { |argument| argument.is_a?(Hash) ? argument.to_json : argument.inspect }.join(", "), length: limit)
+      truncate(Array(arguments).map { |argument| argument.is_a?(Hash) ? argument.to_json : argument.inspect }.join(", "), length: limit)
     end
 
     def job_attempts(job)

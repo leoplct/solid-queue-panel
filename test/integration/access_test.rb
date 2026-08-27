@@ -34,6 +34,14 @@ class AccessTest < SolidQueuePanel::IntegrationTestCase
     assert_equal 2, SolidQueue::Job.count
   end
 
+  test "read-only mode does not even count them" do
+    SolidQueuePanel.configuration.read_only = true
+
+    get panel.duplicates_jobs_path
+
+    assert_redirected_to panel.root_path
+  end
+
   test "the theme is stored in a cookie" do
     patch panel.theme_path, params: { theme: "dark" }
 

@@ -148,7 +148,7 @@ screen.
   </tr>
   <tr>
     <td width="50%"><a href="docs/screenshots/jobs.png"><img src="docs/screenshots/jobs.png" alt="Jobs"></a><br><em>Jobs, filtered by state, with bulk actions</em></td>
-    <td width="50%"><a href="docs/screenshots/job.png"><img src="docs/screenshots/job.png" alt="Job detail"></a><br><em>A failed job, with payload and backtrace</em></td>
+    <td width="50%"><a href="docs/screenshots/duplicates.png"><img src="docs/screenshots/duplicates.png" alt="Duplicates"></a><br><em>Counting the exact copies before discarding them</em></td>
   </tr>
   <tr>
     <td width="50%"><a href="docs/screenshots/resources.png"><img src="docs/screenshots/resources.png" alt="Resources"></a><br><em>Memory, CPU and tuning advice per machine</em></td>
@@ -204,8 +204,10 @@ history says it should.
 
 ### Removing duplicates
 
-The queued tab has a **Remove duplicates** button that discards jobs waiting in a queue that are an
-exact copy of an earlier one, keeping the first of each group.
+The queued tab has a **Remove duplicates** button. It opens a page that counts the copies first and
+lists what they are copies of, so discarding them is a decision rather than a surprise — and so the
+count, which walks the queue, only runs when you ask for it rather than on every page you look at.
+Confirming discards every copy but the first of each group.
 
 Exact is meant literally. Two jobs are copies only when all of this matches:
 

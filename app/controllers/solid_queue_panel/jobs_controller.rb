@@ -2,7 +2,7 @@
 
 module SolidQueuePanel
   class JobsController < ApplicationController
-    before_action :ensure_write_access, only: %i[destroy retry dispatch_now bulk remove_duplicates]
+    before_action :ensure_write_access, only: %i[destroy retry dispatch_now bulk duplicates remove_duplicates]
     before_action :set_job, only: %i[show destroy retry dispatch_now]
 
     def index
@@ -57,12 +57,21 @@ module SolidQueuePanel
       end
     end
 
+    # Counts the copies waiting in a queue and shows what would go, so that
+    # discarding them is a decision rather than a surprise. The scan only runs
+    # when this page is asked for, never while browsing.
+    def duplicates
+      @queue_name = params[:queue_name]
+      @preview = DuplicateJobs.new(queue_name: @queue_name).preview
+    end
+
     # Discards the jobs waiting in a queue that are an exact copy of an earlier
     # one. See SolidQueuePanel::DuplicateJobs for what counts as a copy.
     def remove_duplicates
       result = DuplicateJobs.new(queue_name: params[:queue_name]).discard_all
 
-      redirect_back_with notice: duplicates_notice(result)
+      redirect_to jobs_path(status: "queued", queue_name: params[:queue_name].presence),
+                  notice: duplicates_notice(result)
     end
 
     private

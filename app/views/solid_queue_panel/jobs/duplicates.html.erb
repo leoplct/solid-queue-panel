@@ -1,0 +1,93 @@
+<% content_for :title, "Duplicates" %>
+
+<div class="space-y-4">
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <div>
+      <h1 class="text-xl font-semibold">
+        Duplicates<%= " in #{@queue_name}" if @queue_name.present? %>
+      </h1>
+      <p class="mt-1 text-sm text-slate-500">
+        Jobs waiting in <%= @queue_name.presence || "the queues" %> that are an exact copy of an earlier one:
+        same class, same queue, same priority and the same arguments, down to the number of attempts.
+      </p>
+    </div>
+
+    <%= link_to jobs_path(status: "queued", queue_name: @queue_name), class: button_classes do %>
+      <%= icon "chevron-left", css_class: "size-4" %> Back to the queue
+    <% end %>
+  </div>
+
+  <div class="<%= card_classes %>">
+    <div class="<%= card_header_classes %>">
+      <div>
+        <h2 class="text-sm font-semibold">
+          <% if @preview.any? %>
+            <%= pluralize number(@preview.count), "job" %> would be discarded
+          <% else %>
+            Nothing to discard
+          <% end %>
+        </h2>
+        <p class="mt-0.5 text-xs text-slate-500">
+          <%= pluralize number(@preview.scanned), "job" %> scanned<%= ", the oldest #{number(SolidQueuePanel::DuplicateJobs::MAX_SCAN)} of the queue" if @preview.capped? %>.
+          The first copy of each group always stays.
+        </p>
+      </div>
+
+      <% if @preview.any? %>
+        <%= button_to remove_duplicates_jobs_path(queue_name: @queue_name, status: "queued"), method: :post,
+                      class: button_classes(:danger), form_class: "contents",
+                      form: { data: { sqp_confirm: "Discard #{@preview.count} duplicate jobs? The first copy of each group is kept." } } do %>
+          <%= icon "trash", css_class: "size-4" %> Discard <%= number @preview.count %> duplicates
+        <% end %>
+      <% end %>
+    </div>
+
+    <% if @preview.any? %>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
+          <thead class="bg-slate-50 dark:bg-slate-900/60">
+            <tr>
+              <th scope="col" class="<%= table_header_classes %>">Job</th>
+              <th scope="col" class="<%= table_header_classes %>">Queue</th>
+              <th scope="col" class="<%= table_header_classes %> text-right">Copies</th>
+              <th scope="col" class="<%= table_header_classes %> text-right">Would be discarded</th>
+              <th scope="col" class="<%= table_header_classes %>">Kept</th>
+            </tr>
+          </thead>
+
+          <tbody class="divide-y divide-slate-100 dark:divide-slate-800/70">
+            <% @preview.groups.each do |group| %>
+              <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                <td class="px-4 py-2.5">
+                  <div class="text-sm font-medium"><%= group.class_name %></div>
+                  <% if (arguments = arguments_summary(group.arguments)) %>
+                    <div class="mt-0.5 truncate font-mono text-xs text-slate-400" title="<%= arguments %>"><%= arguments %></div>
+                  <% end %>
+                </td>
+                <td class="<%= table_cell_classes %>"><%= queue_link group.queue_name, class: "hover:underline" %></td>
+                <td class="<%= table_cell_classes %> text-right tabular-nums"><%= number group.total %></td>
+                <td class="<%= table_cell_classes %> text-right tabular-nums font-semibold text-rose-600 dark:text-rose-400">
+                  <%= number group.discarded %>
+                </td>
+                <td class="<%= table_cell_classes %>">
+                  <%= link_to "##{group.kept_job_id}", job_path(group.kept_job_id), class: "font-mono text-xs hover:underline" %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+
+      <% if @preview.partial_list? %>
+        <p class="border-t border-slate-200 px-4 py-3 text-xs text-slate-500 dark:border-slate-800">
+          Only the first <%= number SolidQueuePanel::DuplicateJobs::MAX_GROUPS %> groups are listed. The count above covers all of them.
+        </p>
+      <% end %>
+    <% else %>
+      <%= render "solid_queue_panel/shared/empty_state",
+                 title: "No exact duplicate",
+                 description: "Every job waiting here differs from the others by at least one thing.",
+                 icon_name: "check-circle" %>
+    <% end %>
+  </div>
+</div>

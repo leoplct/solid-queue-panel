@@ -104,12 +104,12 @@ class PagesTest < SolidQueuePanel::IntegrationTestCase
     get panel.jobs_path(status: "queued")
 
     assert_response :success
-    assert_select "form[action=?]", panel.remove_duplicates_jobs_path(status: "queued")
+    assert_select "a[href=?]", panel.duplicates_jobs_path
 
     get panel.jobs_path(status: "failed")
 
     assert_response :success
-    assert_select "form[action=?]", panel.remove_duplicates_jobs_path(status: "failed"), count: 0
+    assert_select "a[href=?]", panel.duplicates_jobs_path, count: 0
   end
 
   test "jobs page filters by search term" do
