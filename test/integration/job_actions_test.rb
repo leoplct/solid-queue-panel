@@ -128,6 +128,48 @@ class JobActionsTest < SolidQueuePanel::IntegrationTestCase
     assert_equal "No exact duplicate found: 1 queued job scanned.", flash[:notice]
   end
 
+  test "retrying every failed job of a list" do
+    jobs = Array.new(3) { create_job(status: :failed) }
+    untouched = create_job(status: :failed, queue_name: "mailers")
+
+    post panel.run_all_jobs_path(status: "failed", queue_name: "default")
+
+    assert_redirected_to panel.jobs_path(status: "failed", queue_name: "default")
+    assert_equal "3 failed jobs enqueued again.", flash[:notice]
+    assert(jobs.all? { |job| job.reload.ready_execution.present? })
+    assert untouched.reload.failed_execution.present?
+  end
+
+  test "running every scheduled job now" do
+    job = create_job(status: :scheduled)
+
+    post panel.run_all_jobs_path(status: "scheduled")
+
+    assert_equal "1 scheduled job is due now, and will be dispatched on the next poll.", flash[:notice]
+    assert_operator job.reload.scheduled_execution.scheduled_at, :<=, Time.current
+  end
+
+  test "releasing every blocked job that can be released" do
+    2.times { create_job(class_name: "ConcurrentJob", arguments: [ 1 ], concurrency_key: "imports") }
+    create_job(class_name: "ConcurrentJob", arguments: [ 1 ], concurrency_key: "imports")
+    SolidQueue::ReadyExecution.delete_all
+    SolidQueue::Semaphore.update_all(value: 1)
+
+    post panel.run_all_jobs_path(status: "blocked")
+
+    assert_equal "1 blocked job released.", flash[:notice]
+    assert_equal 1, SolidQueue::ReadyExecution.count
+  end
+
+  test "there is nothing to run on a list of queued jobs" do
+    create_job(status: :queued)
+
+    post panel.run_all_jobs_path(status: "queued")
+
+    assert_equal "Nothing to run.", flash[:notice]
+    assert_equal 1, SolidQueue::ReadyExecution.count
+  end
+
   test "an unknown bulk action changes nothing" do
     job = create_job(status: :queued)
 

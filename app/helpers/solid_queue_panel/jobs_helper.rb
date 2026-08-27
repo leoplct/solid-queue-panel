@@ -135,6 +135,32 @@ module SolidQueuePanel
       "estimated from #{number_with_delimiter(estimate.runs)} #{subject} in the last 24 hours (#{basis})"
     end
 
+    RUN_ALL = {
+      "failed" => { label: "Retry all", icon: "arrow-uturn-left", verb: "Enqueue" },
+      "scheduled" => { label: "Run all now", icon: "forward", verb: "Make due now" },
+      "blocked" => { label: "Release all", icon: "play", verb: "Try to release" }
+    }.freeze
+
+    def run_all_available?(query)
+      RUN_ALL.key?(query.status)
+    end
+
+    def run_all_label(status)
+      RUN_ALL.dig(status, :label)
+    end
+
+    def run_all_icon(status)
+      RUN_ALL.dig(status, :icon)
+    end
+
+    def run_all_confirmation(query, count)
+      subject = [ pluralize(number_with_delimiter(count), "#{query.status.humanize.downcase} job") ]
+      subject << "in #{query.queue_name}" if query.queue_name.present?
+      subject << "matching the search" if query.search.present?
+
+      "#{RUN_ALL.dig(query.status, :verb)} #{subject.join(" ")}?"
+    end
+
     def queue_link(queue_name, **options)
       link_to queue_name, queue_path(name: queue_name), **options
     end

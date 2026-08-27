@@ -2,7 +2,7 @@
 
 module SolidQueuePanel
   class JobsController < ApplicationController
-    before_action :ensure_write_access, only: %i[destroy retry dispatch_now bulk duplicates remove_duplicates]
+    before_action :ensure_write_access, only: %i[destroy retry dispatch_now bulk duplicates remove_duplicates run_all]
     before_action :set_job, only: %i[show destroy retry dispatch_now]
 
     def index
@@ -57,6 +57,15 @@ module SolidQueuePanel
       end
     end
 
+    # Puts every job of the current list back to work: failed jobs are enqueued
+    # again, scheduled ones become due now, blocked ones are offered their
+    # concurrency lock again.
+    def run_all
+      result = RunAllJobs.new(JobsQuery.new(**query_params)).run
+
+      redirect_to jobs_path(query_params), notice: run_all_notice(result)
+    end
+
     # Counts the copies waiting in a queue and shows what would go, so that
     # discarding them is a decision rather than a surprise. The scan only runs
     # when this page is asked for, never while browsing.
@@ -75,6 +84,26 @@ module SolidQueuePanel
     end
 
     private
+      def run_all_notice(result)
+        notice = case result.status
+        when "failed" then "#{helpers.pluralize(result.count, "failed job")} enqueued again."
+        when "scheduled" then "#{helpers.pluralize(result.count, "scheduled job")} #{result.count == 1 ? "is" : "are"} due now, and will be dispatched on the next poll."
+        when "blocked" then blocked_notice(result)
+        else "Nothing to run."
+        end
+
+        result.capped? ? "#{notice} Only the first #{helpers.number_with_delimiter(RunAllJobs::MAX)} were taken: run it again for the rest." : notice
+      end
+
+      def blocked_notice(result)
+        return "No blocked job could take its concurrency lock: they are all still waiting." unless result.any?
+
+        notice = "#{helpers.pluralize(result.count, "blocked job")} released."
+        return notice if result.left_behind.zero?
+
+        "#{notice} #{helpers.pluralize(result.left_behind, "job")} still waiting on their concurrency limit."
+      end
+
       def duplicates_notice(result)
         scanned = "#{helpers.pluralize(result.scanned, "queued job")} scanned"
         scanned += " (the scan stops at #{helpers.number_with_delimiter(DuplicateJobs::MAX_SCAN)})" if result.capped?

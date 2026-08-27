@@ -14,6 +14,14 @@
         <% end %>
       <% end %>
 
+      <% if run_all_available?(query) && pagination.total_count.positive? && !read_only? %>
+        <%= button_to run_all_jobs_path(query.to_params), method: :post, class: button_classes, form_class: "contents",
+                      title: "Put every job in this list back to work, filters included",
+                      form: { data: { sqp_confirm: run_all_confirmation(query, pagination.total_count) } } do %>
+          <%= icon run_all_icon(query.status), css_class: "size-4" %> <%= run_all_label(query.status) %>
+        <% end %>
+      <% end %>
+
       <% if bulk && !read_only? %>
         <%= form_with url: bulk_jobs_path(query.to_params), method: :post, id: "sqp-bulk-form",
                       data: { sqp_confirm: "Apply this action to the selected jobs?" },

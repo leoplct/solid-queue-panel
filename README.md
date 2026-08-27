@@ -129,7 +129,7 @@ config.read_only = true   # hides and refuses retry, discard, pause, resume, cle
 | **Processes** | Supervisors with their workers, dispatchers and schedulers: queues polled, thread pool size and how much of it is busy, polling interval, heartbeat, and every job currently running. Dead processes can be pruned from here. |
 | **Queues** | Per queue counters and a backlog bar broken down by state, plus latency — how long the oldest job has been waiting. Queues can be paused, resumed and cleared. |
 | **Queue detail** | The jobs of a single queue, filtered by state: the fastest way to answer "what is stuck in this queue?". |
-| **Jobs** | Every job, filtered by state, queue or search (job class, job id or Active Job id), with retry, run now, discard, bulk actions and [duplicate removal](#removing-duplicates). |
+| **Jobs** | Every job, filtered by state, queue or search (job class, job id or Active Job id), with retry, run now, discard, bulk actions, [putting a whole list back to work](#putting-a-list-back-to-work) and [duplicate removal](#removing-duplicates). |
 | **Job detail** | The Active Job payload, timings, attempts, concurrency key, the worker running it, and the full error with backtrace when it failed. |
 | **Recurring** | Recurring tasks with their schedule, target, queue, last run and next run, plus the latest runs of each task. |
 | **Metrics** | A throughput chart of jobs enqueued, finished and failed, with arrival and completion rates, and a table per job class: enqueued, finished, failed, failure rate, jobs in progress, average and total time. |
@@ -201,6 +201,22 @@ Hovering a progress bar tells you when the job is expected to finish, how many r
 based on, and whether those runs were measured inside the worker or inferred from the time between
 enqueue and completion. A bar that fills past 100% turns red: the job is taking longer than its
 history says it should.
+
+### Putting a list back to work
+
+Every list of jobs that are not running has a button that puts all of them back to work, filters
+included, so a queue that failed during an outage does not have to be clicked back one job at a time:
+
+- **Retry all** on the failed list enqueues them again, with their attempt counters reset, exactly as
+  retrying each of them by hand would.
+- **Run all now** on the scheduled list moves their due date to now, and the dispatcher picks them up
+  on its next poll — through the usual concurrency checks, not around them.
+- **Release all** on the blocked list offers each of them their concurrency lock again. The ones that
+  can take it start running, the ones that cannot stay blocked: the button asks Solid Queue to try,
+  it does not bypass the limit.
+
+Each of them works through at most 5,000 jobs per press, oldest first, and says so when there are
+more.
 
 ### Removing duplicates
 

@@ -25,6 +25,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   over time, the resource cost of each job class, and advice on how many
   processes and threads the machine can take. Opt in with
   `bin/rails generate solid_queue_panel:resource_metrics`.
+- "Retry all", "Run all now" and "Release all", which put every job of the
+  failed, scheduled and blocked lists back to work, filters included.
 - "Duplicates" on the queued tab, which counts the exact copies of an
   earlier job on a page of its own, shows what they are copies of, and discards
   them once confirmed.

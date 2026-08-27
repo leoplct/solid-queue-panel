@@ -100,6 +100,25 @@ class PagesTest < SolidQueuePanel::IntegrationTestCase
     assert_select "a", text: "ReportJob", count: 0
   end
 
+  test "each list that can be put back to work has a button for it" do
+    { "failed" => "Retry all", "scheduled" => "Run all now", "blocked" => "Release all" }.each do |status, label|
+      get panel.jobs_path(status: status)
+
+      assert_response :success
+      assert_select "form[action=?]", panel.run_all_jobs_path(status: status)
+      assert_match label, response.body
+    end
+  end
+
+  test "lists with nothing to run have no button" do
+    %w[queued in_progress finished].each do |status|
+      get panel.jobs_path(status: status)
+
+      assert_response :success
+      assert_select "form[action=?]", panel.run_all_jobs_path(status: status), count: 0
+    end
+  end
+
   test "the remove duplicates button only shows on the queued tab" do
     get panel.jobs_path(status: "queued")
 

@@ -13,6 +13,7 @@ SolidQueuePanel::Engine.routes.draw do
       post :bulk
       get :duplicates
       post :remove_duplicates
+      post :run_all
     end
   end
 

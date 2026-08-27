@@ -34,6 +34,15 @@ class AccessTest < SolidQueuePanel::IntegrationTestCase
     assert_equal 2, SolidQueue::Job.count
   end
 
+  test "read-only mode refuses to run everything again" do
+    job = create_job(status: :failed)
+    SolidQueuePanel.configuration.read_only = true
+
+    post panel.run_all_jobs_path(status: "failed")
+
+    assert job.reload.failed_execution.present?
+  end
+
   test "read-only mode does not even count them" do
     SolidQueuePanel.configuration.read_only = true
 
