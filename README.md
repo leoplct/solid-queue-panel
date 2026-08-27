@@ -125,14 +125,15 @@ config.read_only = true   # hides and refuses retry, discard, pause, resume, cle
 
 | Page | What it shows |
 | --- | --- |
-| **Dashboard** | Live counters, a throughput chart of jobs enqueued, finished and failed, with arrival and completion rates so you can see at a glance whether the workers are keeping up. Plus the busiest queues, the running processes, the latest failures, and alerts when something is silently wrong (no worker running, dead processes, paused queues, wrong Active Job adapter). |
+| **Dashboard** | The [capacity table](#capacity-and-eta): for every queue, the threads that can work on it, what they are running right now, what is pending, when it was last added to, and when it will be empty — plus retries, scheduled and dead jobs. Along with alerts when something is silently wrong (no worker running, dead processes, paused queues, wrong Active Job adapter), the running processes and the latest failures. |
 | **Processes** | Supervisors with their workers, dispatchers and schedulers: queues polled, thread pool size and how much of it is busy, polling interval, heartbeat, and every job currently running. Dead processes can be pruned from here. |
 | **Queues** | Per queue counters and a backlog bar broken down by state, plus latency — how long the oldest job has been waiting. Queues can be paused, resumed and cleared. |
 | **Queue detail** | The jobs of a single queue, filtered by state: the fastest way to answer "what is stuck in this queue?". |
 | **Jobs** | Every job, filtered by state, queue or search (job class, job id or Active Job id), with retry, run now, discard, bulk actions and [duplicate removal](#removing-duplicates). |
 | **Job detail** | The Active Job payload, timings, attempts, concurrency key, the worker running it, and the full error with backtrace when it failed. |
 | **Recurring** | Recurring tasks with their schedule, target, queue, last run and next run, plus the latest runs of each task. |
-| **Metrics** | Per job class: enqueued, finished, failed, failure rate, jobs in progress, average and total time, over a configurable period. |
+| **Metrics** | A throughput chart of jobs enqueued, finished and failed, with arrival and completion rates, and a table per job class: enqueued, finished, failed, failure rate, jobs in progress, average and total time. |
+| **Resources** | [How much memory and CPU](#resource-metrics) every machine and every Solid Queue process is using, over time, what each job class costs, and concrete advice on how many processes and threads this machine can take. |
 | **Settings** | The whole Solid Queue configuration with an explanation of every setting, the processes Solid Queue would start, the contents of `config/queue.yml` and `config/recurring.yml`, the database the queue lives in, and the versions in use. |
 
 Every page refreshes itself while you watch it, in light or dark theme, and works down to a phone
@@ -150,14 +151,32 @@ screen.
     <td width="50%"><a href="docs/screenshots/job.png"><img src="docs/screenshots/job.png" alt="Job detail"></a><br><em>A failed job, with payload and backtrace</em></td>
   </tr>
   <tr>
-    <td width="50%"><a href="docs/screenshots/metrics.png"><img src="docs/screenshots/metrics.png" alt="Metrics"></a><br><em>Metrics per job class</em></td>
+    <td width="50%"><a href="docs/screenshots/resources.png"><img src="docs/screenshots/resources.png" alt="Resources"></a><br><em>Memory, CPU and tuning advice per machine</em></td>
     <td width="50%"><a href="docs/screenshots/settings.png"><img src="docs/screenshots/settings.png" alt="Settings"></a><br><em>Settings: the whole Solid Queue configuration</em></td>
   </tr>
   <tr>
-    <td width="50%"><a href="docs/screenshots/recurring.png"><img src="docs/screenshots/recurring.png" alt="Recurring tasks"></a><br><em>Recurring tasks and their next run</em></td>
+    <td width="50%"><a href="docs/screenshots/metrics.png"><img src="docs/screenshots/metrics.png" alt="Metrics"></a><br><em>Throughput and metrics per job class</em></td>
     <td width="50%"><a href="docs/screenshots/dashboard-dark.png"><img src="docs/screenshots/dashboard-dark.png" alt="Dark theme"></a><br><em>Dark theme, following the system by default</em></td>
   </tr>
 </table>
+
+### Capacity and ETA
+
+The table on the dashboard answers the question you actually have when a queue starts growing: is
+there anyone working on it, and when will it be done?
+
+- **Capacity** is the number of worker threads polling the queue, wildcards resolved the way Solid
+  Queue resolves them. A worker polling several queues lends its threads to all of them, so
+  capacities overlap: the number says how many jobs of that queue *could* be running right now.
+- **In progress** is what those threads are doing, green until 70% of the capacity, amber up to 95%,
+  red when every thread is taken.
+- **Pending** is what is waiting in the queue, and **Last added** is how long ago the queue was last
+  added to.
+- **ETA** spreads the work waiting over the threads that can pick it up. It uses the real duration of
+  each job class when the [resource metrics](#resource-metrics) are installed, and falls back to the
+  time from enqueue to completion otherwise, which reads long because it includes the wait.
+- **Retries** are jobs that already raised an error and will run again, **Scheduled** are jobs waiting
+  for their time, and **Dead** are the ones that will not be retried until you say so.
 
 ### Removing duplicates
 
@@ -179,6 +198,47 @@ Discarding goes through Solid Queue, so any concurrency lock the discarded jobs 
 
 The scan compares payloads in Ruby, so it stops at the 100,000 oldest queued jobs and tells you how
 many it looked at. Run it again to work through a longer queue.
+
+## Resource metrics
+
+The panel can measure how much memory and CPU Solid Queue is actually using, on every machine, and
+what each job class costs. It is not installed by default because it needs two tables of its own:
+
+```bash
+bin/rails generate solid_queue_panel:resource_metrics
+bin/rails db:migrate
+```
+
+Restart your Solid Queue processes and the **Resources** page fills up. The migration goes to the
+migrations path of the database Solid Queue uses, so a dedicated queue database is handled on its own.
+
+What gets recorded, from inside the Solid Queue processes themselves:
+
+- **Per process**, every 30 seconds: resident memory and CPU, plus the memory, cores and load average
+  of the machine. In a container the cgroup limits are read instead of the size of the host, which is
+  what you want on Kubernetes, Docker or a Heroku-style dyno.
+- **Per job class**, accumulated in memory and written on the same tick: how many jobs ran, how long
+  they took, how much CPU they used (measured on the thread that ran the job) and how much the
+  process grew while they ran.
+
+That is one row per process per sample, and a handful of rows an hour for the job usage — no matter
+how many jobs run. Samples are pruned after three days.
+
+The page turns it into the two decisions you have to make:
+
+> Each worker holds 233 MB, and the machine is using 64% of its 8,192 MB. There is room for about 10
+> worker processes of that size.
+>
+> Load average is 2.26 on 4 cores, 56% per core. The machine is comfortably busy.
+>
+> Running 3 processes × 5 threads. A starting point to measure against: 4 × 5.
+
+...along with the `config/queue.yml` snippet for that suggestion, and a table of the job classes that
+are burning the most CPU and growing the process the most.
+
+Memory attribution has one honest caveat: resident memory belongs to the whole process, so when a
+worker runs several threads the growth attributed to one job is an indication rather than an invoice.
+CPU time is per thread, and exact.
 
 ## Requirements
 
@@ -235,6 +295,16 @@ SolidQueuePanel.configure do |config|
   # Periods (in hours) offered by the dashboard and metrics time filters.
   config.time_periods = [ 1, 6, 24, 24 * 7 ]
 
+  # Record memory and CPU from inside the Solid Queue processes. Nothing is
+  # recorded until the resource metrics tables are installed, whatever this is.
+  config.record_resource_metrics = true
+
+  # Seconds between two resource samples, per process.
+  config.resource_sample_interval = 30.seconds
+
+  # How long samples and per job class usage are kept.
+  config.resource_retention = 3.days
+
   # Controller the panel controllers inherit from. Use it to reuse the
   # authentication, layout or callbacks of your own admin section.
   config.base_controller_class = "ActionController::Base"
@@ -261,6 +331,8 @@ The panel is built to stay cheap on databases with millions of jobs:
 - Live refresh is a single request per interval, it pauses while you are typing or selecting rows,
   and it stops when the tab is in the background. Raise `polling_interval` or set it to `0` if you
   want less traffic.
+- The resource recorder writes one row per process every 30 seconds and a handful of rows an hour for
+  the job usage, whatever the throughput, and prunes itself after three days.
 
 Two things to know about the data itself, both coming from Solid Queue rather than from this gem:
 
@@ -285,7 +357,7 @@ database.
 | Retries | **Jobs → Scheduled**: Solid Queue re-schedules a job for its next attempt |
 | Scheduled | **Jobs → Scheduled** |
 | Dead | **Jobs → Failed**: Solid Queue keeps failed jobs until you retry or discard them |
-| Metrics | **Metrics** |
+| Metrics | **Metrics**, and **Resources** for what the workers cost |
 | Cron jobs (Sidekiq Enterprise) | **Recurring** |
 | — | **Settings**, which has no Sidekiq equivalent |
 

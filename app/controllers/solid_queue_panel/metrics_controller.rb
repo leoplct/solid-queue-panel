@@ -5,6 +5,7 @@ module SolidQueuePanel
     def show
       @period = time_period
       @metrics = Metrics.new(period: @period, sort: params[:sort])
+      @throughput = Throughput.new(period: @period)
     end
   end
 end

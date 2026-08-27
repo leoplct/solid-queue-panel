@@ -19,7 +19,8 @@ def build_job(class_name: JOB_CLASSES.sample, queue_name: QUEUES.sample, schedul
       "job_id" => SecureRandom.uuid,
       "queue_name" => queue_name,
       "arguments" => [ rand(1..500), { "force" => [ true, false ].sample } ],
-      "executions" => rand(0..3)
+      # Most jobs run on the first attempt; some are retries.
+      "executions" => (rand < 0.15 ? rand(1..3) : 0)
     }
   ).tap do |job|
     # Spreading the enqueue times makes the throughput chart look like a real
@@ -109,3 +110,68 @@ end
 SolidQueue::Queue.find_by_name("mailers").pause
 
 puts "Seeded #{SolidQueue::Job.count} jobs, #{SolidQueue::Process.count} processes."
+
+# Resource metrics, when the tables are installed: a day of samples for every
+# process, and the CPU and memory each job class used.
+if SolidQueuePanel.resource_metrics?
+  SolidQueuePanel::ProcessSample.delete_all
+  SolidQueuePanel::JobUsage.delete_all
+
+  HOST = { cpu_count: 4, memory_kb: 8 * 1024 * 1024 }.freeze
+  SAMPLE_EVERY = 10.minutes
+
+  processes = SolidQueue::Process.order(:kind, :name).to_a
+
+  samples = (0...(24 * 60 / 10)).flat_map do |step|
+    at = (step * SAMPLE_EVERY).ago
+    busy = 0.35 + (Math.sin(step / 7.0) + 1) * 0.2
+    used_kb = (HOST[:memory_kb] * (0.45 + busy * 0.35)).to_i
+
+    processes.map do |process|
+      worker = process.kind == "Worker"
+
+      {
+        process_id: process.id,
+        name: process.name,
+        kind: process.kind,
+        hostname: "jobs-01",
+        pid: process.pid,
+        rss_kb: worker ? (190_000 + (busy * 90_000) + rand(-8_000..8_000)).to_i : (85_000 + rand(-4_000..4_000)),
+        cpu_percent: worker ? (busy * 90 + rand(-8..8)).round(2) : rand(1.0..4.0).round(2),
+        threads: worker ? 9 : 3,
+        cpu_count: HOST[:cpu_count],
+        load_average: (HOST[:cpu_count] * busy + rand(-0.3..0.3)).round(2),
+        memory_kb: HOST[:memory_kb],
+        available_memory_kb: HOST[:memory_kb] - used_kb,
+        created_at: at
+      }
+    end
+  end
+
+  SolidQueuePanel::ProcessSample.insert_all(samples)
+
+  usages = JOB_CLASSES.flat_map do |class_name|
+    weight = { "ReportJob" => 6.0, "ImportJob" => 3.5, "MailerJob" => 0.6, "CleanupJob" => 1.2, "BrokenJob" => 0.4 }.fetch(class_name, 1.0)
+
+    24.times.map do |hour|
+      executions = rand(4..18)
+
+      {
+        class_name: class_name,
+        bucket_at: SolidQueuePanel::JobUsage.bucket_for(hour.hours.ago),
+        executions: executions,
+        failures: class_name == "BrokenJob" ? rand(0..2) : 0,
+        cpu_ms: (executions * weight * rand(400..900)).to_i,
+        wall_ms: (executions * weight * rand(700..1800)).to_i,
+        memory_growth_kb: (executions * weight * rand(200..2_500)).to_i,
+        max_rss_kb: (180_000 + weight * rand(5_000..40_000)).to_i,
+        created_at: Time.current,
+        updated_at: Time.current
+      }
+    end
+  end
+
+  SolidQueuePanel::JobUsage.insert_all(usages)
+
+  puts "Seeded #{SolidQueuePanel::ProcessSample.count} resource samples and #{SolidQueuePanel::JobUsage.count} job usage buckets."
+end

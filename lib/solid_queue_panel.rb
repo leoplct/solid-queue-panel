@@ -8,7 +8,8 @@ require "solid_queue_panel/engine"
 
 # Solid Queue Panel is a mountable Rails engine that gives Solid Queue the
 # kind of web UI Sidekiq users are used to: an overview of the whole system,
-# live process and queue monitoring, job browsing and per-class metrics.
+# live process and queue monitoring, job browsing, per class metrics and the
+# resources every worker is using.
 module SolidQueuePanel
   class Error < StandardError; end
 
@@ -18,7 +19,21 @@ module SolidQueuePanel
     end
     alias config configuration
 
-    # Configures the dashboard, typically from an initializer.
+    # True once the resource metrics tables exist. While they are missing the
+    # check is repeated at most once a minute, so installing them does not need
+    # a restart of the application.
+    def resource_metrics?
+      now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+      if @resource_metrics_checked_at.nil? || (!@resource_metrics && now - @resource_metrics_checked_at > 60)
+        @resource_metrics = table_installed?
+        @resource_metrics_checked_at = now
+      end
+
+      @resource_metrics
+    end
+
+    # Configures the panel, typically from an initializer.
     #
     #   SolidQueuePanel.configure do |config|
     #     config.application_name = "Acme"
@@ -27,5 +42,12 @@ module SolidQueuePanel
     def configure
       yield configuration
     end
+
+    private
+      def table_installed?
+        ProcessSample.table_exists?
+      rescue StandardError
+        false
+      end
   end
 end

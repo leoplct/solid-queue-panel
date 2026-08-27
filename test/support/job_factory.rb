@@ -17,7 +17,7 @@ module JobFactory
     SolidQueue::Pause.delete_all
   end
 
-  def create_job(class_name: "ReportJob", queue_name: "default", status: :queued, scheduled_at: nil, arguments: [ 42 ], concurrency_key: nil)
+  def create_job(class_name: "ReportJob", queue_name: "default", status: :queued, scheduled_at: nil, arguments: [ 42 ], concurrency_key: nil, process: nil)
     job = SolidQueue::Job.create!(
       class_name: class_name,
       queue_name: queue_name,
@@ -29,7 +29,7 @@ module JobFactory
 
     case status
     when :queued, :scheduled then job
-    when :in_progress then claim(job)
+    when :in_progress then claim(job, process: process)
     when :failed then fail_job(job)
     when :finished then finish(job)
     when :blocked then block(job)

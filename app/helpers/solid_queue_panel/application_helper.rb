@@ -20,6 +20,7 @@ module SolidQueuePanel
         NavItem.new("jobs", "Jobs", jobs_path, "rectangle-stack"),
         NavItem.new("recurring_tasks", "Recurring", recurring_tasks_path, "arrow-path"),
         NavItem.new("metrics", "Metrics", metrics_path, "chart-pie"),
+        NavItem.new("resources", "Resources", resources_path, "server-stack"),
         NavItem.new("settings", "Settings", settings_path, "cog-6-tooth")
       ]
     end
@@ -43,6 +44,18 @@ module SolidQueuePanel
 
     # Rates read better in the unit that gives a number a human can hold on to:
     # jobs per second when things are busy, per minute or per hour when not.
+    def megabytes(kilobytes)
+      return tag.span("—", class: "text-slate-400") if kilobytes.nil?
+
+      "#{number_with_delimiter((kilobytes / 1024.0).round)} MB"
+    end
+
+    def percentage(value, precision: 0)
+      return tag.span("—", class: "text-slate-400") if value.nil?
+
+      "#{number_with_precision(value, precision: precision)}%"
+    end
+
     def rate_in_words(per_second)
       case per_second
       when 1.0.. then "#{number_with_precision(per_second, precision: 1)}/s"

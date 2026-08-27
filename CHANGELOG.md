@@ -10,8 +10,19 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- Dashboard with live counters, a throughput chart of jobs enqueued, finished
-  and failed with arrival and completion rates, and health alerts.
+- Capacity table on the dashboard: threads polling each queue, what they are
+  running, what is pending, when the queue was last added to, an ETA for the
+  backlog, and the retried, scheduled and dead jobs of each queue.
+- Resources page: memory and CPU of every machine and every Solid Queue process
+  over time, the resource cost of each job class, and advice on how many
+  processes and threads the machine can take. Opt in with
+  `bin/rails generate solid_queue_panel:resource_metrics`.
+- "Remove duplicates" on the queued tab, which discards jobs that are an exact
+  copy of an earlier one.
+- Throughput chart of jobs enqueued, finished and failed, with arrival and
+  completion rates, on the metrics page.
+- Health alerts for the things that are silently wrong: no worker running, dead
+  processes, paused queues, a different Active Job adapter.
 - Processes page with supervisors, workers, thread usage gauges and jobs in
   progress.
 - Queues page with per queue counters, backlog bars, latency, pause, resume and

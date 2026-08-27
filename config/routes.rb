@@ -32,6 +32,7 @@ SolidQueuePanel::Engine.routes.draw do
   resources :recurring_tasks, only: %i[index show], param: :key, constraints: { key: %r{[^/]+} }
 
   resource :metrics, only: :show
+  resource :resources, only: :show
   resource :settings, only: :show
   resource :theme, only: :update
 

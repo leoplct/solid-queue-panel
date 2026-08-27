@@ -8,6 +8,10 @@ require "rails/test_help"
 ActiveRecord::Migration.verbose = false
 load File.expand_path("dummy/db/queue_schema.rb", __dir__)
 
+# The resource metrics tables come from the migration the gem generates, so the
+# tests run against the very migration applications get.
+ActiveRecord::MigrationContext.new(File.expand_path("dummy/db/migrate", __dir__)).migrate
+
 require_relative "support/job_factory"
 
 module SolidQueuePanel

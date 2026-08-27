@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Boots the dummy application with a seeded Solid Queue database, so the
-# dashboard can be developed against realistic data.
+# Boots the dummy application with a seeded Solid Queue database, so the panel
+# can be developed against realistic data.
 set -e
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -9,5 +9,7 @@ cd "$root"
 bundle exec rake tailwind:build
 
 cd "$root/test/dummy"
-bin/rails runner 'load Rails.root.join("db/queue_schema.rb"); load Rails.root.join("db/seeds.rb")'
+bin/rails runner 'load Rails.root.join("db/queue_schema.rb")'
+bin/rails db:migrate
+bin/rails runner 'load Rails.root.join("db/seeds.rb")'
 exec bin/rails server -p "${PORT:-3010}"

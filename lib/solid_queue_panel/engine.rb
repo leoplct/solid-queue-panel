@@ -12,5 +12,21 @@ module SolidQueuePanel
     rake_tasks do
       load File.expand_path("../tasks/solid_queue_panel.rake", __dir__)
     end
+
+    # Resource metrics are collected inside the Solid Queue processes, so the
+    # panel hooks into their lifecycle. The hooks are cheap to register: nothing
+    # runs until a Solid Queue process actually boots, and nothing is recorded
+    # until the tables are installed.
+    config.after_initialize do
+      next unless SolidQueuePanel.configuration.record_resource_metrics?
+
+      SolidQueue.on_start { SolidQueuePanel::Recorder.start(kind: "Supervisor") }
+      SolidQueue.on_stop { SolidQueuePanel::Recorder.stop }
+
+      %w[worker dispatcher scheduler].each do |process|
+        SolidQueue.public_send(:"on_#{process}_start") { SolidQueuePanel::Recorder.start(kind: process.capitalize) }
+        SolidQueue.public_send(:"on_#{process}_stop") { SolidQueuePanel::Recorder.stop }
+      end
+    end
   end
 end

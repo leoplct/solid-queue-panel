@@ -1,0 +1,208 @@
+<% content_for :title, "Resources" %>
+
+<div class="space-y-4">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h1 class="text-xl font-semibold">Machines running Solid Queue</h1>
+      <p class="mt-1 text-sm text-slate-500">
+        Memory and CPU as measured inside the Solid Queue processes themselves.
+        <% if @report.recorded_at %>
+          Last reading <%= relative_time @report.recorded_at %>.
+        <% end %>
+      </p>
+    </div>
+
+    <%= render "solid_queue_panel/shared/period_selector", current: @period %>
+  </div>
+
+  <% if !@report.installed? %>
+    <div class="<%= card_classes %> p-6">
+      <h2 class="flex items-center gap-2 text-sm font-semibold">
+        <%= icon "server-stack", css_class: "size-5 text-slate-400" %> Resource metrics are not installed
+      </h2>
+      <p class="mt-2 max-w-2xl text-sm text-slate-500 dark:text-slate-400">
+        The panel can record how much memory and CPU every Solid Queue process uses, on every machine,
+        and how much of it each job class is responsible for. It needs two tables of its own:
+      </p>
+      <pre class="mt-3 overflow-x-auto rounded-lg bg-slate-900 p-3 font-mono text-xs text-slate-200">bin/rails generate solid_queue_panel:resource_metrics
+bin/rails db:migrate</pre>
+      <p class="mt-3 text-sm text-slate-500 dark:text-slate-400">
+        Then restart your Solid Queue processes. Recording costs one row per process every
+        <%= duration_in_words panel_configuration.resource_sample_interval %>, and job usage is
+        accumulated in memory and written in the same tick.
+      </p>
+    </div>
+  <% elsif !@report.any? %>
+    <%= render "solid_queue_panel/shared/empty_state",
+               title: "No reading yet",
+               description: "The tables are installed. Restart your Solid Queue processes and the first samples will show up here within a minute.",
+               icon_name: "server-stack" %>
+  <% else %>
+    <% @report.hosts.each do |host| %>
+      <div class="<%= card_classes %>">
+        <div class="<%= card_header_classes %>">
+          <h2 class="flex items-center gap-2 text-sm font-semibold">
+            <%= icon "server-stack", css_class: "size-4 text-slate-400" %>
+            <%= host.hostname %>
+          </h2>
+          <p class="text-xs text-slate-500">
+            <%= pluralize host.samples.size, "process" %> ·
+            <%= pluralize host.workers.size, "worker" %> ·
+            <%= host.cpu_count || "?" %> cores ·
+            <%= megabytes host.memory_kb %> of memory
+          </p>
+        </div>
+
+        <div class="grid gap-px bg-slate-200 sm:grid-cols-2 lg:grid-cols-4 dark:bg-slate-800">
+          <div class="bg-white p-4 dark:bg-slate-900">
+            <div class="text-xs font-medium uppercase tracking-wide text-slate-500">Machine memory</div>
+            <div class="mt-1 text-xl font-semibold tabular-nums"><%= percentage host.memory_usage %></div>
+            <div class="mt-1 text-xs text-slate-500">
+              <%= megabytes host.used_memory_kb %> of <%= megabytes host.memory_kb %>
+            </div>
+            <div class="mt-2"><%= meter_bar host.used_memory_kb.to_i, host.memory_kb.to_i, width: 200 %></div>
+            <%= metric_chart @report.machine_memory_series(host), stroke: "stroke-slate-400", fill: "fill-slate-400/15" %>
+          </div>
+
+          <div class="bg-white p-4 dark:bg-slate-900">
+            <div class="text-xs font-medium uppercase tracking-wide text-slate-500">Solid Queue memory</div>
+            <div class="mt-1 text-xl font-semibold tabular-nums"><%= megabytes host.solid_queue_memory_kb %></div>
+            <div class="mt-1 text-xs text-slate-500">
+              <%= megabytes host.worker_memory_kb %> per worker
+            </div>
+            <%= metric_chart @report.worker_memory_series(host), stroke: "stroke-indigo-500", fill: "fill-indigo-500/15" %>
+          </div>
+
+          <div class="bg-white p-4 dark:bg-slate-900">
+            <div class="text-xs font-medium uppercase tracking-wide text-slate-500">Load per core</div>
+            <div class="mt-1 text-xl font-semibold tabular-nums">
+              <%= host.load_per_core ? percentage(host.load_per_core * 100) : "—" %>
+            </div>
+            <div class="mt-1 text-xs text-slate-500">
+              load average <%= host.load_average&.round(2) || "—" %>
+            </div>
+            <%= metric_chart @report.load_series(host), stroke: "stroke-amber-500", fill: "fill-amber-500/15" %>
+          </div>
+
+          <div class="bg-white p-4 dark:bg-slate-900">
+            <div class="text-xs font-medium uppercase tracking-wide text-slate-500">Solid Queue CPU</div>
+            <div class="mt-1 text-xl font-semibold tabular-nums"><%= percentage host.machine_cpu_usage %></div>
+            <div class="mt-1 text-xs text-slate-500">
+              of <%= pluralize host.cpu_count.to_i, "core" %>, every process together
+            </div>
+            <%= metric_chart @report.worker_cpu_series(host), stroke: "stroke-blue-500", fill: "fill-blue-500/15" %>
+          </div>
+        </div>
+
+        <div class="space-y-2 border-t border-slate-200 p-4 dark:border-slate-800">
+          <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Tuning</h3>
+
+          <% host.advice.statements.each do |statement| %>
+            <p class="flex items-start gap-2 rounded-lg px-3 py-2 text-sm ring-1 ring-inset <%= alert_classes(statement.level) %>">
+              <%= icon alert_icon(statement.level), css_class: "size-4 shrink-0 translate-y-0.5" %>
+              <span><%= statement.text %></span>
+            </p>
+          <% end %>
+
+          <% if host.advice.suggested_processes && host.advice.suggested_threads %>
+            <pre class="mt-2 overflow-x-auto rounded-lg bg-slate-900 p-3 font-mono text-xs leading-relaxed text-slate-200"># config/queue.yml
+production:
+  workers:
+    - queues: "*"
+      processes: <%= host.advice.suggested_processes %>
+      threads: <%= host.advice.suggested_threads %></pre>
+          <% end %>
+        </div>
+
+        <div class="overflow-x-auto border-t border-slate-200 dark:border-slate-800">
+          <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
+            <thead class="bg-slate-50 dark:bg-slate-900/60">
+              <tr>
+                <th scope="col" class="<%= table_header_classes %>">Process</th>
+                <th scope="col" class="<%= table_header_classes %>">Kind</th>
+                <th scope="col" class="<%= table_header_classes %> text-right">Memory</th>
+                <th scope="col" class="<%= table_header_classes %> text-right">CPU</th>
+                <th scope="col" class="<%= table_header_classes %> text-right">Ruby threads</th>
+                <th scope="col" class="<%= table_header_classes %>">Read</th>
+              </tr>
+            </thead>
+
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-800/70">
+              <% host.samples.sort_by { |sample| [ sample.kind, sample.name ] }.each do |sample| %>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                  <td class="px-4 py-2.5 text-sm font-medium">
+                    <% if sample.process_id && SolidQueue::Process.exists?(sample.process_id) %>
+                      <%= link_to sample.name, process_path(sample.process_id), class: "hover:underline" %>
+                    <% else %>
+                      <%= sample.name %>
+                    <% end %>
+                    <div class="text-xs text-slate-400">pid <%= sample.pid %></div>
+                  </td>
+                  <td class="<%= table_cell_classes %>"><%= badge sample.kind, color: sample.kind == "Worker" ? "blue" : "slate" %></td>
+                  <td class="<%= table_cell_classes %> text-right tabular-nums"><%= megabytes sample.rss_kb %></td>
+                  <td class="<%= table_cell_classes %> text-right tabular-nums"><%= percentage sample.cpu_percent, precision: 1 %></td>
+                  <td class="<%= table_cell_classes %> text-right tabular-nums"><%= sample.threads %></td>
+                  <td class="<%= table_cell_classes %>"><%= relative_time sample.created_at %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <% end %>
+
+    <div class="<%= card_classes %>">
+      <div class="<%= card_header_classes %>">
+        <h2 class="text-sm font-semibold">Heaviest job classes</h2>
+        <p class="text-xs text-slate-500">
+          CPU time is measured on the thread that ran the job. Memory growth is the resident memory of
+          the whole process, so with several threads it is an indication rather than an invoice.
+        </p>
+      </div>
+
+      <% if @report.job_usage? %>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
+            <thead class="bg-slate-50 dark:bg-slate-900/60">
+              <tr>
+                <th scope="col" class="<%= table_header_classes %>">Job class</th>
+                <th scope="col" class="<%= table_header_classes %> text-right">Runs</th>
+                <th scope="col" class="<%= table_header_classes %> text-right">CPU time</th>
+                <th scope="col" class="<%= table_header_classes %>">Share of CPU</th>
+                <th scope="col" class="<%= table_header_classes %> text-right">Avg CPU</th>
+                <th scope="col" class="<%= table_header_classes %> text-right">Avg duration</th>
+                <th scope="col" class="<%= table_header_classes %> text-right">Avg memory growth</th>
+                <th scope="col" class="<%= table_header_classes %> text-right">Peak process memory</th>
+              </tr>
+            </thead>
+
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-800/70">
+              <% @report.heaviest_jobs.each do |usage| %>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                  <td class="px-4 py-2.5 text-sm font-medium">
+                    <%= link_to usage.class_name, jobs_path(search: usage.class_name), class: "hover:underline" %>
+                  </td>
+                  <td class="<%= table_cell_classes %> text-right tabular-nums"><%= number usage.executions %></td>
+                  <td class="<%= table_cell_classes %> text-right tabular-nums"><%= duration_in_words usage.cpu_ms / 1000.0 %></td>
+                  <td class="px-4 py-2.5">
+                    <%= backlog_bar [ [ "of the CPU time", usage.cpu_ms, "fill-blue-500" ] ], total: @report.total_cpu_ms, width: 120 %>
+                    <span class="ml-2 text-xs text-slate-500 tabular-nums"><%= usage.cpu_share_of(@report.total_cpu_ms) %>%</span>
+                  </td>
+                  <td class="<%= table_cell_classes %> text-right tabular-nums"><%= duration_in_words usage.average_cpu_ms / 1000.0 %></td>
+                  <td class="<%= table_cell_classes %> text-right tabular-nums"><%= duration_in_words usage.average_wall_ms / 1000.0 %></td>
+                  <td class="<%= table_cell_classes %> text-right tabular-nums"><%= megabytes usage.average_memory_growth_kb %></td>
+                  <td class="<%= table_cell_classes %> text-right tabular-nums"><%= megabytes usage.max_rss_kb %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% else %>
+        <%= render "solid_queue_panel/shared/empty_state",
+                   title: "No job has run in this period",
+                   description: "Job usage is recorded by the workers as they run jobs.",
+                   icon_name: "bolt" %>
+      <% end %>
+    </div>
+  <% end %>
+</div>

@@ -13,12 +13,47 @@ class PagesTest < SolidQueuePanel::IntegrationTestCase
     @task = SolidQueue::RecurringTask.create!(key: "cleanup", schedule: "every hour", class_name: "CleanupJob", static: true)
   end
 
-  test "dashboard renders every panel" do
+  test "dashboard shows the capacity of every queue" do
+    create_process(metadata: { "queues" => "*", "thread_pool_size" => 5 })
+
     get panel.root_path
 
     assert_response :success
-    assert_select "h2", text: /Throughput/
+    assert_select "h2", text: /Capacity/
+    assert_select "a", text: "reports"
     assert_select "a", text: /BrokenJob/
+  end
+
+  test "metrics page charts the throughput" do
+    get panel.metrics_path
+
+    assert_response :success
+    assert_select "h2", text: /Throughput/
+  end
+
+  test "resources page explains how to install the metrics when they are missing" do
+    SolidQueuePanel::ProcessSample.delete_all
+
+    get panel.resources_path
+
+    assert_response :success
+    assert_match "No reading yet", response.body
+  end
+
+  test "resources page shows what each machine is using" do
+    SolidQueuePanel::ProcessSample.create!(
+      name: "worker-1", kind: "Worker", hostname: "jobs-01", pid: 42, rss_kb: 250_000, cpu_percent: 40.0,
+      threads: 9, cpu_count: 4, load_average: 2.0, memory_kb: 8_000_000, available_memory_kb: 4_000_000,
+      created_at: Time.current
+    )
+    SolidQueuePanel::JobUsage.create!(class_name: "ReportJob", bucket_at: SolidQueuePanel::JobUsage.bucket_for(Time.current),
+                                      executions: 10, cpu_ms: 5_000, wall_ms: 9_000, memory_growth_kb: 2_000, max_rss_kb: 260_000)
+
+    get panel.resources_path
+
+    assert_response :success
+    assert_select "h2", text: /jobs-01/
+    assert_match "ReportJob", response.body
   end
 
   test "jobs page lists jobs and filters by status" do

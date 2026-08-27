@@ -35,6 +35,17 @@ module SolidQueuePanel
     # How long a sign in lasts before the panel asks for the password again.
     attr_accessor :session_duration
 
+    # Record memory and CPU usage from inside the Solid Queue processes. Needs
+    # the tables added by `bin/rails generate solid_queue_panel:resource_metrics`;
+    # without them nothing is recorded, whatever this is set to.
+    attr_accessor :record_resource_metrics
+
+    # Seconds between two resource samples, per process.
+    attr_accessor :resource_sample_interval
+
+    # How long samples and per job class usage are kept.
+    attr_accessor :resource_retention
+
     # Custom authentication callable, instance_exec'd in the controller.
     attr_reader :authentication_block
 
@@ -51,6 +62,9 @@ module SolidQueuePanel
       @username = nil
       @password = nil
       @session_duration = 2.weeks
+      @record_resource_metrics = true
+      @resource_sample_interval = 30.seconds
+      @resource_retention = 3.days
       @authentication_block = nil
     end
 
@@ -79,6 +93,10 @@ module SolidQueuePanel
     # password signs everybody out.
     def credentials_digest
       Digest::SHA256.hexdigest("solid_queue_panel:#{username}:#{password}")
+    end
+
+    def record_resource_metrics?
+      !!record_resource_metrics
     end
 
     def read_only?

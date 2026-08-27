@@ -54,6 +54,64 @@ module SolidQueuePanel
               class: "overflow-visible", role: "img", "aria-hidden": true)
     end
 
+    # A compact area chart for one measurement over time, the kind that sits
+    # inside a card next to the current value. Gaps in the data are simply not
+    # plotted.
+    def metric_chart(points, stroke: "stroke-emerald-500", fill: "fill-emerald-500/15", height: 56)
+      data = points.reject { |_time, value| value.nil? }
+      return tag.div("No data yet", class: "flex h-14 items-center text-xs text-slate-400") if data.size < 2
+
+      width = 300
+      times = data.map { |time, _value| time.to_i }
+      span = [ times.max - times.min, 1 ].max
+      ceiling = [ data.map(&:last).max, 0.001 ].max
+
+      coordinates = data.map do |time, value|
+        x = ((time.to_i - times.min) / span.to_f * width).round(2)
+        y = (height - (value / ceiling * (height - 4))).round(2)
+
+        "#{x},#{y}"
+      end
+
+      tag.svg(
+        safe_join([
+          tag.polygon(points: ([ "0,#{height}" ] + coordinates + [ "#{width},#{height}" ]).join(" "), class: fill),
+          tag.polyline(points: coordinates.join(" "), class: "#{stroke} fill-none", "stroke-width": 1.5, "stroke-linejoin": "round")
+        ]),
+        viewBox: "0 0 #{width} #{height}",
+        class: "h-14 w-full",
+        preserveAspectRatio: "none",
+        "aria-hidden": true
+      )
+    end
+
+    # A wider gauge with the numbers written inside it, for the capacity table:
+    # green while there is room, amber when it is getting full, red when every
+    # thread is taken.
+    def utilization_bar(value, max, width: 132, height: 22)
+      max = max.to_i
+      ratio = max.positive? ? value.to_f / max : 0
+      filled = max.positive? ? (width * [ ratio, 1.0 ].min) : 0
+
+      color = case ratio
+      when 0...0.7 then "fill-emerald-500"
+      when 0.7...0.95 then "fill-amber-500"
+      else "fill-rose-500"
+      end
+
+      tag.svg(
+        safe_join([
+          tag.rect(x: 0, y: 0, width: width, height: height, rx: 5, class: "fill-slate-200 dark:fill-slate-700"),
+          tag.rect(x: 0, y: 0, width: filled.round(2), height: height, rx: 5, class: max.positive? ? color : "fill-transparent"),
+          tag.text(max.positive? ? "#{value} / #{max}" : "no worker",
+                   x: width / 2, y: height / 2 + 4, "text-anchor": "middle",
+                   class: "fill-slate-900 text-[11px] font-medium dark:fill-slate-900")
+        ]),
+        viewBox: "0 0 #{width} #{height}", width: width, height: height, role: "img",
+        "aria-label": "#{value} of #{max} threads busy"
+      )
+    end
+
     # A capacity gauge: busy threads against the pool size, RabbitMQ's
     # resource bars in miniature.
     def meter_bar(value, max, width: 90, height: 6)

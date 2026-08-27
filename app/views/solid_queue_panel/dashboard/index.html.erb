@@ -14,80 +14,116 @@
 
   <div class="<%= card_classes %>">
     <div class="<%= card_header_classes %>">
-      <div class="flex flex-wrap items-center gap-4">
-        <h2 class="text-sm font-semibold">Throughput</h2>
-        <div class="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-          <span class="inline-flex items-center gap-1.5">
-            <span class="size-2 rounded-full bg-indigo-500"></span>
-            <%= number @throughput.enqueued %> enqueued · <%= rate_in_words @throughput.enqueued_rate %>
-          </span>
-          <span class="inline-flex items-center gap-1.5">
-            <span class="size-2 rounded-full bg-emerald-500"></span>
-            <%= number @throughput.finished %> finished · <%= rate_in_words @throughput.completion_rate %>
-          </span>
-          <span class="inline-flex items-center gap-1.5">
-            <span class="size-2 rounded-full bg-rose-500"></span>
-            <%= number @throughput.failed %> failed (<%= @throughput.failure_rate %>%)
-          </span>
-        </div>
-      </div>
-
-      <%= render "solid_queue_panel/shared/period_selector", current: @period %>
-    </div>
-
-    <div class="p-4">
-      <%= throughput_chart @throughput %>
-
-      <p class="mt-2 text-xs <%= @throughput.falling_behind? ? "text-amber-600 dark:text-amber-400" : "text-slate-500" %>">
-        <% if @throughput.falling_behind? %>
-          Jobs are arriving faster than they are being processed: the backlog is growing.
-        <% else %>
-          Workers are keeping up with the jobs being enqueued.
-        <% end %>
-        <span class="text-slate-400">· <%= duration_in_words @throughput.bucket_size %> buckets</span>
-      </p>
-      <% unless SolidQueue.preserve_finished_jobs? %>
-        <p class="mt-2 text-xs text-slate-500">
-          <code>preserve_finished_jobs</code> is disabled, so finished jobs are deleted immediately and cannot be charted.
+      <div>
+        <h2 class="text-sm font-semibold">Capacity</h2>
+        <p class="mt-0.5 text-xs text-slate-500">
+          Threads polling each queue, what they are running right now, and how long the rest will take.
+          <% if @capacity.durations_source == :estimated %>
+            Durations are estimated from enqueue to completion, so they read long:
+            <%= link_to "install the resource metrics", resources_path, class: "underline underline-offset-2" %>
+            to measure how long jobs actually run.
+          <% end %>
         </p>
-      <% end %>
-    </div>
-  </div>
-
-  <div class="grid gap-4 lg:grid-cols-2">
-    <div class="<%= card_classes %>">
-      <div class="<%= card_header_classes %>">
-        <h2 class="text-sm font-semibold">Busiest queues</h2>
-        <%= link_to "All queues", queues_path, class: "text-sm text-slate-500 underline-offset-2 hover:underline" %>
       </div>
 
-      <% if @queues.any? %>
-        <table class="min-w-full divide-y divide-slate-100 dark:divide-slate-800/70">
+      <p class="text-xs text-slate-500">
+        <%= number @capacity.total_capacity %> worker <%= "thread".pluralize(@capacity.total_capacity) %> in total
+      </p>
+    </div>
+
+    <% if @capacity.any? %>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
+          <thead class="bg-slate-50 dark:bg-slate-900/60">
+            <tr>
+              <th scope="col" class="<%= table_header_classes %>">Queue</th>
+              <th scope="col" class="<%= table_header_classes %> text-right">Capacity</th>
+              <th scope="col" class="<%= table_header_classes %>">In progress</th>
+              <th scope="col" class="<%= table_header_classes %> text-right">Pending</th>
+              <th scope="col" class="<%= table_header_classes %>">Last added</th>
+              <th scope="col" class="<%= table_header_classes %> text-right">ETA</th>
+              <th scope="col" class="<%= table_header_classes %> text-right" title="Jobs that raised an error and are waiting to run again">Retries</th>
+              <th scope="col" class="<%= table_header_classes %> text-right" title="Jobs waiting for their scheduled time">Scheduled</th>
+              <th scope="col" class="<%= table_header_classes %> text-right" title="Jobs that failed and will not be retried until you say so">Dead</th>
+            </tr>
+          </thead>
+
           <tbody class="divide-y divide-slate-100 dark:divide-slate-800/70">
-            <% @queues.each do |queue| %>
+            <% @capacity.rows.each do |row| %>
               <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                <td class="px-4 py-2.5 text-sm font-medium">
-                  <%= link_to queue.name, queue_path(name: queue.name), class: "hover:underline" %>
-                  <% if queue.paused? %><%= badge "paused", color: "amber", icon_name: "pause" %><% end %>
+                <td class="px-4 py-2.5">
+                  <%= link_to row.name, queue_path(row.name), class: "text-sm font-medium hover:underline" %>
+                  <% if row.paused? %>
+                    <%= badge "paused", color: "amber", icon_name: "pause" %>
+                  <% end %>
                 </td>
-                <td class="px-4 py-2.5 text-right text-sm tabular-nums text-slate-500">
-                  <%= number queue.ready %> queued
+
+                <td class="<%= table_cell_classes %> text-right tabular-nums"
+                    title="Threads of every worker polling this queue. A worker polling several queues lends its threads to all of them.">
+                  <%= number row.capacity %>
                 </td>
-                <td class="px-4 py-2.5 text-right text-sm tabular-nums text-slate-500">
-                  <%= number queue.in_progress %> running
+
+                <td class="px-4 py-2.5"><%= utilization_bar row.in_progress, row.capacity %></td>
+
+                <td class="<%= table_cell_classes %> text-right tabular-nums <%= "font-semibold" if row.pending.positive? %>">
+                  <%= number row.pending %>
                 </td>
-                <td class="px-4 py-2.5 text-right text-sm tabular-nums text-slate-500">
-                  <%= duration_in_words queue.latency %> latency
+
+                <td class="<%= table_cell_classes %>"><%= relative_time row.last_enqueued_at %></td>
+
+                <td class="<%= table_cell_classes %> text-right tabular-nums">
+                  <% if row.idle? %>
+                    <span class="text-slate-400">empty</span>
+                  <% elsif row.paused? %>
+                    <span class="text-amber-600 dark:text-amber-400" title="A paused queue is not being worked on">paused</span>
+                  <% elsif row.capacity.zero? %>
+                    <span class="text-rose-600 dark:text-rose-400" title="No worker is polling this queue">never</span>
+                  <% else %>
+                    <span title="<%= pluralize row.backlog, "job" %> to run, spread over <%= pluralize row.capacity, "thread" %>">
+                      <%= duration_in_words row.eta_seconds %>
+                    </span>
+                  <% end %>
+                </td>
+
+                <td class="<%= table_cell_classes %> text-right tabular-nums">
+                  <% if row.retries.positive? %>
+                    <%= link_to number(row.retries), jobs_path(status: "scheduled", queue_name: row.name),
+                                class: "text-amber-600 hover:underline dark:text-amber-400" %>
+                  <% else %>
+                    <span class="text-slate-400">0</span>
+                  <% end %>
+                </td>
+
+                <td class="<%= table_cell_classes %> text-right tabular-nums">
+                  <% if row.scheduled.positive? %>
+                    <%= link_to number(row.scheduled), jobs_path(status: "scheduled", queue_name: row.name), class: "hover:underline" %>
+                  <% else %>
+                    <span class="text-slate-400">0</span>
+                  <% end %>
+                </td>
+
+                <td class="<%= table_cell_classes %> text-right tabular-nums">
+                  <% if row.dead.positive? %>
+                    <%= link_to number(row.dead), jobs_path(status: "failed", queue_name: row.name),
+                                class: "font-semibold text-rose-600 hover:underline dark:text-rose-400" %>
+                  <% else %>
+                    <span class="text-slate-400">0</span>
+                  <% end %>
                 </td>
               </tr>
             <% end %>
           </tbody>
         </table>
-      <% else %>
-        <%= render "solid_queue_panel/shared/empty_state", title: "No queues yet", icon_name: "queue-list" %>
-      <% end %>
-    </div>
+      </div>
+    <% else %>
+      <%= render "solid_queue_panel/shared/empty_state",
+                 title: "No queue yet",
+                 description: "Queues show up here as soon as a job is enqueued or a worker starts polling them.",
+                 icon_name: "queue-list" %>
+    <% end %>
+  </div>
 
+  <div class="grid gap-4 lg:grid-cols-2">
     <div class="<%= card_classes %>">
       <div class="<%= card_header_classes %>">
         <h2 class="text-sm font-semibold">Processes</h2>
@@ -128,30 +164,30 @@
         <% end %>
       </ul>
     </div>
-  </div>
 
-  <div class="<%= card_classes %>">
-    <div class="<%= card_header_classes %>">
-      <h2 class="text-sm font-semibold">Latest failures</h2>
-      <%= link_to "All failed jobs", jobs_path(status: "failed"), class: "text-sm text-slate-500 underline-offset-2 hover:underline" %>
+    <div class="<%= card_classes %>">
+      <div class="<%= card_header_classes %>">
+        <h2 class="text-sm font-semibold">Latest failures</h2>
+        <%= link_to "All failed jobs", jobs_path(status: "failed"), class: "text-sm text-slate-500 underline-offset-2 hover:underline" %>
+      </div>
+
+      <% if @recent_failures.any? %>
+        <ul class="divide-y divide-slate-100 dark:divide-slate-800/70">
+          <% @recent_failures.each do |job| %>
+            <li class="flex flex-wrap items-baseline justify-between gap-2 px-4 py-3">
+              <div class="min-w-0">
+                <%= link_to job.class_name, job_path(job), class: "text-sm font-medium hover:underline" %>
+                <p class="mt-0.5 truncate font-mono text-xs text-rose-600 dark:text-rose-400">
+                  <%= failed_error_class(job.failed_execution) %>: <%= truncate(failed_error_message(job.failed_execution), length: 140) %>
+                </p>
+              </div>
+              <span class="text-xs text-slate-500"><%= relative_time job.failed_execution&.created_at %></span>
+            </li>
+          <% end %>
+        </ul>
+      <% else %>
+        <%= render "solid_queue_panel/shared/empty_state", title: "No failures", description: "Nothing has blown up recently.", icon_name: "check-circle" %>
+      <% end %>
     </div>
-
-    <% if @recent_failures.any? %>
-      <ul class="divide-y divide-slate-100 dark:divide-slate-800/70">
-        <% @recent_failures.each do |job| %>
-          <li class="flex flex-wrap items-baseline justify-between gap-2 px-4 py-3">
-            <div class="min-w-0">
-              <%= link_to job.class_name, job_path(job), class: "text-sm font-medium hover:underline" %>
-              <p class="mt-0.5 truncate font-mono text-xs text-rose-600 dark:text-rose-400">
-                <%= failed_error_class(job.failed_execution) %>: <%= truncate(failed_error_message(job.failed_execution), length: 140) %>
-              </p>
-            </div>
-            <span class="text-xs text-slate-500"><%= relative_time job.failed_execution&.created_at %></span>
-          </li>
-        <% end %>
-      </ul>
-    <% else %>
-      <%= render "solid_queue_panel/shared/empty_state", title: "No failures", description: "Nothing has blown up recently.", icon_name: "check-circle" %>
-    <% end %>
   </div>
 </div>

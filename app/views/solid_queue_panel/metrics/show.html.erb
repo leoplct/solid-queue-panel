@@ -1,5 +1,43 @@
 <% content_for :title, "Metrics" %>
 
+<div class="space-y-4">
+  <div class="<%= card_classes %>">
+    <div class="<%= card_header_classes %>">
+      <div class="flex flex-wrap items-center gap-4">
+        <h2 class="text-sm font-semibold">Throughput</h2>
+        <div class="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+          <span class="inline-flex items-center gap-1.5">
+            <span class="size-2 rounded-full bg-indigo-500"></span>
+            <%= number @throughput.enqueued %> enqueued · <%= rate_in_words @throughput.enqueued_rate %>
+          </span>
+          <span class="inline-flex items-center gap-1.5">
+            <span class="size-2 rounded-full bg-emerald-500"></span>
+            <%= number @throughput.finished %> finished · <%= rate_in_words @throughput.completion_rate %>
+          </span>
+          <span class="inline-flex items-center gap-1.5">
+            <span class="size-2 rounded-full bg-rose-500"></span>
+            <%= number @throughput.failed %> failed (<%= @throughput.failure_rate %>%)
+          </span>
+        </div>
+      </div>
+
+      <%= render "solid_queue_panel/shared/period_selector", current: @period %>
+    </div>
+
+    <div class="p-4">
+      <%= throughput_chart @throughput %>
+
+      <p class="mt-2 text-xs <%= @throughput.falling_behind? ? "text-amber-600 dark:text-amber-400" : "text-slate-500" %>">
+        <% if @throughput.falling_behind? %>
+          Jobs are arriving faster than they are being processed: the backlog is growing.
+        <% else %>
+          Workers are keeping up with the jobs being enqueued.
+        <% end %>
+        <span class="text-slate-400">· <%= duration_in_words @throughput.bucket_size %> buckets</span>
+      </p>
+    </div>
+  </div>
+
 <div class="<%= card_classes %>">
   <div class="<%= card_header_classes %>">
     <div>
@@ -76,4 +114,5 @@
                description: "Pick a longer period, or come back once some jobs have been processed.",
                icon_name: "chart-pie" %>
   <% end %>
+</div>
 </div>
