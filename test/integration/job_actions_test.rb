@@ -64,6 +64,36 @@ class JobActionsTest < SolidQueuePanel::IntegrationTestCase
     assert_equal 0, SolidQueue::Job.count
   end
 
+  test "removing duplicates keeps the first copy of each queued job" do
+    kept = create_job(class_name: "ReportJob", arguments: [ 7 ])
+    duplicate = create_job(class_name: "ReportJob", arguments: [ 7 ])
+    other = create_job(class_name: "ReportJob", arguments: [ 8 ])
+
+    post panel.remove_duplicates_jobs_path(status: "queued")
+
+    assert_equal "Discarded 1 duplicate job: 3 queued jobs scanned.", flash[:notice]
+    assert_equal [ kept.id, other.id ].sort, SolidQueue::Job.pluck(:id).sort
+    assert_not SolidQueue::Job.exists?(duplicate.id)
+  end
+
+  test "removing duplicates can be limited to one queue" do
+    2.times { create_job(queue_name: "reports", arguments: [ 7 ]) }
+    2.times { create_job(queue_name: "mailers", arguments: [ 7 ]) }
+
+    post panel.remove_duplicates_jobs_path(status: "queued", queue_name: "reports")
+
+    assert_equal 1, SolidQueue::Job.where(queue_name: "reports").count
+    assert_equal 2, SolidQueue::Job.where(queue_name: "mailers").count
+  end
+
+  test "removing duplicates says so when there is nothing to remove" do
+    create_job(arguments: [ 1 ])
+
+    post panel.remove_duplicates_jobs_path(status: "queued")
+
+    assert_equal "No exact duplicate found: 1 queued job scanned.", flash[:notice]
+  end
+
   test "an unknown bulk action changes nothing" do
     job = create_job(status: :queued)
 

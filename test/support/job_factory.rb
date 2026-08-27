@@ -17,13 +17,13 @@ module JobFactory
     SolidQueue::Pause.delete_all
   end
 
-  def create_job(class_name: "ReportJob", queue_name: "default", status: :queued, scheduled_at: nil, arguments: [ 42 ])
+  def create_job(class_name: "ReportJob", queue_name: "default", status: :queued, scheduled_at: nil, arguments: [ 42 ], concurrency_key: nil)
     job = SolidQueue::Job.create!(
       class_name: class_name,
       queue_name: queue_name,
       active_job_id: SecureRandom.uuid,
       scheduled_at: scheduled_at || (status == :scheduled ? 1.hour.from_now : Time.current),
-      concurrency_key: ("#{class_name}/1" if status == :blocked),
+      concurrency_key: concurrency_key || ("#{class_name}/1" if status == :blocked),
       arguments: { "job_class" => class_name, "job_id" => SecureRandom.uuid, "arguments" => arguments, "executions" => 0 }
     )
 

@@ -65,7 +65,7 @@
         <% unless status == :in_progress %>
           <%= button_to job_path(job, query.to_params), method: :delete, class: button_classes(:danger),
                         title: "Discard this job", form_class: "contents",
-                        form: { data: { sqd_confirm: "Discard job ##{job.id}?" } } do %>
+                        form: { data: { sqp_confirm: "Discard job ##{job.id}?" } } do %>
             <%= icon "trash", css_class: "size-4" %>
           <% end %>
         <% end %>

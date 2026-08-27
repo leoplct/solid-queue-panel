@@ -26,7 +26,7 @@
         <% end %>
 
         <%= button_to "Clear", clear_queue_path(@queue.name), method: :delete, class: button_classes(:danger), form_class: "contents",
-                      form: { data: { sqd_confirm: "Discard all #{@summary.ready} jobs queued in #{@queue.name}?" } } %>
+                      form: { data: { sqp_confirm: "Discard all #{@summary.ready} jobs queued in #{@queue.name}?" } } %>
       <% end %>
     </div>
   </div>

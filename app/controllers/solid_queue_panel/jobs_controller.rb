@@ -2,7 +2,7 @@
 
 module SolidQueuePanel
   class JobsController < ApplicationController
-    before_action :ensure_write_access, only: %i[destroy retry dispatch_now bulk]
+    before_action :ensure_write_access, only: %i[destroy retry dispatch_now bulk remove_duplicates]
     before_action :set_job, only: %i[show destroy retry dispatch_now]
 
     def index
@@ -57,7 +57,26 @@ module SolidQueuePanel
       end
     end
 
+    # Discards the jobs waiting in a queue that are an exact copy of an earlier
+    # one. See SolidQueuePanel::DuplicateJobs for what counts as a copy.
+    def remove_duplicates
+      result = DuplicateJobs.new(queue_name: params[:queue_name]).discard_all
+
+      redirect_back_with notice: duplicates_notice(result)
+    end
+
     private
+      def duplicates_notice(result)
+        scanned = "#{helpers.pluralize(result.scanned, "queued job")} scanned"
+        scanned += " (the scan stops at #{helpers.number_with_delimiter(DuplicateJobs::MAX_SCAN)})" if result.capped?
+
+        if result.any?
+          "Discarded #{helpers.pluralize(result.discarded, "duplicate job")}: #{scanned}."
+        else
+          "No exact duplicate found: #{scanned}."
+        end
+      end
+
       def set_job
         @job = SolidQueue::Job.find(params[:id])
       end

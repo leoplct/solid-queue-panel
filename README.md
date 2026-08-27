@@ -129,7 +129,7 @@ config.read_only = true   # hides and refuses retry, discard, pause, resume, cle
 | **Processes** | Supervisors with their workers, dispatchers and schedulers: queues polled, thread pool size and how much of it is busy, polling interval, heartbeat, and every job currently running. Dead processes can be pruned from here. |
 | **Queues** | Per queue counters and a backlog bar broken down by state, plus latency — how long the oldest job has been waiting. Queues can be paused, resumed and cleared. |
 | **Queue detail** | The jobs of a single queue, filtered by state: the fastest way to answer "what is stuck in this queue?". |
-| **Jobs** | Every job, filtered by state, queue or search (job class, job id or Active Job id), with retry, run now, discard and bulk actions. |
+| **Jobs** | Every job, filtered by state, queue or search (job class, job id or Active Job id), with retry, run now, discard, bulk actions and [duplicate removal](#removing-duplicates). |
 | **Job detail** | The Active Job payload, timings, attempts, concurrency key, the worker running it, and the full error with backtrace when it failed. |
 | **Recurring** | Recurring tasks with their schedule, target, queue, last run and next run, plus the latest runs of each task. |
 | **Metrics** | Per job class: enqueued, finished, failed, failure rate, jobs in progress, average and total time, over a configurable period. |
@@ -158,6 +158,27 @@ screen.
     <td width="50%"><a href="docs/screenshots/dashboard-dark.png"><img src="docs/screenshots/dashboard-dark.png" alt="Dark theme"></a><br><em>Dark theme, following the system by default</em></td>
   </tr>
 </table>
+
+### Removing duplicates
+
+The queued tab has a **Remove duplicates** button that discards jobs waiting in a queue that are an
+exact copy of an earlier one, keeping the first of each group.
+
+Exact is meant literally. Two jobs are copies only when all of this matches:
+
+- the job class, the queue and the priority,
+- the concurrency key,
+- the entire Active Job payload: arguments, locale, timezone, number of attempts, everything.
+
+The only fields ignored are the ones Active Job generates for every single job and that therefore can
+never be equal: `job_id`, `enqueued_at` and `provider_job_id`.
+
+Only jobs still waiting in their queue are considered. A job a worker has already claimed, or a
+scheduled, blocked or failed one, is never touched — and neither is the first copy of each group.
+Discarding goes through Solid Queue, so any concurrency lock the discarded jobs held is released.
+
+The scan compares payloads in Ruby, so it stops at the 100,000 oldest queued jobs and tells you how
+many it looked at. Run it again to work through a longer queue.
 
 ## Requirements
 

@@ -30,7 +30,7 @@
 
         <% unless status == :in_progress %>
           <%= button_to "Discard", job_path(@job), method: :delete, class: button_classes(:danger), form_class: "contents",
-                        form: { data: { sqd_confirm: "Discard job ##{@job.id}?" } } %>
+                        form: { data: { sqp_confirm: "Discard job ##{@job.id}?" } } %>
         <% end %>
       <% end %>
     </div>

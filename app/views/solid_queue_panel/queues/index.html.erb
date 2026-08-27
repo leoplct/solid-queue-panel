@@ -63,7 +63,7 @@
 
                     <%= button_to clear_queue_path(queue.name), method: :delete, class: button_classes(:danger),
                                   title: "Discard every queued job", form_class: "contents",
-                                  form: { data: { sqd_confirm: "Discard all #{queue.ready} jobs queued in #{queue.name}?" } } do %>
+                                  form: { data: { sqp_confirm: "Discard all #{queue.ready} jobs queued in #{queue.name}?" } } do %>
                       <%= icon "trash", css_class: "size-4" %>
                     <% end %>
                   <% end %>

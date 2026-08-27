@@ -25,6 +25,15 @@ class AccessTest < SolidQueuePanel::IntegrationTestCase
     assert job.reload.failed_execution.present?
   end
 
+  test "read-only mode refuses to remove duplicates" do
+    2.times { create_job(arguments: [ 1 ]) }
+    SolidQueuePanel.configuration.read_only = true
+
+    post panel.remove_duplicates_jobs_path(status: "queued")
+
+    assert_equal 2, SolidQueue::Job.count
+  end
+
   test "the theme is stored in a cookie" do
     patch panel.theme_path, params: { theme: "dark" }
 

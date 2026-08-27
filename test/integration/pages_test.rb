@@ -34,6 +34,18 @@ class PagesTest < SolidQueuePanel::IntegrationTestCase
     assert_select "a", text: "ReportJob", count: 0
   end
 
+  test "the remove duplicates button only shows on the queued tab" do
+    get panel.jobs_path(status: "queued")
+
+    assert_response :success
+    assert_select "form[action=?]", panel.remove_duplicates_jobs_path(status: "queued")
+
+    get panel.jobs_path(status: "failed")
+
+    assert_response :success
+    assert_select "form[action=?]", panel.remove_duplicates_jobs_path(status: "failed"), count: 0
+  end
+
   test "jobs page filters by search term" do
     get panel.jobs_path(search: "Broken")
 

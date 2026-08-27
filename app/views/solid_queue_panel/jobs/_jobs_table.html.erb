@@ -6,18 +6,29 @@
       <span class="ml-1 text-slate-400">(<%= number pagination.total_count %>)</span>
     </h2>
 
-    <% if bulk && !read_only? %>
-      <%= form_with url: bulk_jobs_path(query.to_params), method: :post, id: "sqp-bulk-form",
-                    data: { sqd_confirm: "Apply this action to the selected jobs?" },
-                    class: "flex items-center gap-2" do %>
-        <button type="submit" name="bulk_action" value="retry" class="<%= button_classes %>">
-          <%= icon "arrow-uturn-left", css_class: "size-4" %> Retry selected
-        </button>
-        <button type="submit" name="bulk_action" value="discard" class="<%= button_classes(:danger) %>">
-          <%= icon "trash", css_class: "size-4" %> Discard selected
-        </button>
+    <div class="flex flex-wrap items-center gap-2">
+      <% if query.status == "queued" && !read_only? %>
+        <%= button_to remove_duplicates_jobs_path(query.to_params), method: :post, class: button_classes,
+                      title: "Discard queued jobs that are an exact copy of an earlier one: same class, same queue, same priority, same arguments",
+                      form_class: "contents",
+                      form: { data: { sqp_confirm: "Discard the queued jobs that are an exact copy of an earlier one? The first copy of each is kept." } } do %>
+          <%= icon "document-duplicate", css_class: "size-4" %> Remove duplicates
+        <% end %>
       <% end %>
-    <% end %>
+
+      <% if bulk && !read_only? %>
+        <%= form_with url: bulk_jobs_path(query.to_params), method: :post, id: "sqp-bulk-form",
+                      data: { sqp_confirm: "Apply this action to the selected jobs?" },
+                      class: "flex items-center gap-2" do %>
+          <button type="submit" name="bulk_action" value="retry" class="<%= button_classes %>">
+            <%= icon "arrow-uturn-left", css_class: "size-4" %> Retry selected
+          </button>
+          <button type="submit" name="bulk_action" value="discard" class="<%= button_classes(:danger) %>">
+            <%= icon "trash", css_class: "size-4" %> Discard selected
+          </button>
+        <% end %>
+      <% end %>
+    </div>
   </div>
 
   <% if jobs.any? %>

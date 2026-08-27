@@ -27,7 +27,7 @@
 
       <% if @registry.dead.any? && !read_only? %>
         <%= button_to prune_processes_path, method: :post, class: button_classes(:danger), form_class: "contents",
-                      form: { data: { sqd_confirm: "Prune #{@registry.dead.size} process(es) with no heartbeat? Jobs they had claimed will be marked as failed." } } do %>
+                      form: { data: { sqp_confirm: "Prune #{@registry.dead.size} process(es) with no heartbeat? Jobs they had claimed will be marked as failed." } } do %>
           <%= icon "trash", css_class: "size-4" %> Prune dead processes
         <% end %>
       <% end %>
