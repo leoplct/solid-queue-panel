@@ -1,0 +1,54 @@
+<% content_for :title, @process.name %>
+
+<div class="space-y-4">
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <div>
+      <div class="flex items-center gap-2">
+        <h1 class="text-xl font-semibold"><%= @process.name %></h1>
+        <%= badge @process.kind, color: @process.kind == "Worker" ? "blue" : "slate" %>
+        <%= @registry.alive?(@process) ? badge("alive", color: "emerald") : badge("no heartbeat", color: "rose") %>
+      </div>
+      <p class="mt-1 text-sm text-slate-500">
+        <%= @process.hostname %> · pid <%= @process.pid %> · started <%= relative_time @process.created_at %>
+      </p>
+    </div>
+
+    <%= link_to processes_path, class: button_classes do %>
+      <%= icon "chevron-left", css_class: "size-4" %> All processes
+    <% end %>
+  </div>
+
+  <div class="grid gap-4 lg:grid-cols-2">
+    <div class="<%= card_classes %>">
+      <div class="<%= card_header_classes %>"><h2 class="text-sm font-semibold">Registration</h2></div>
+      <dl class="divide-y divide-slate-100 text-sm dark:divide-slate-800/70">
+        <%= render "solid_queue_panel/jobs/detail", label: "Kind", value: @process.kind %>
+        <%= render "solid_queue_panel/jobs/detail", label: "Hostname", value: @process.hostname %>
+        <%= render "solid_queue_panel/jobs/detail", label: "PID", value: @process.pid %>
+        <%= render "solid_queue_panel/jobs/detail", label: "Started at", value: absolute_time(@process.created_at) %>
+        <%= render "solid_queue_panel/jobs/detail", label: "Last heartbeat", value: absolute_time(@process.last_heartbeat_at) %>
+        <% if @process.supervisor %>
+          <div class="flex gap-4 px-4 py-2.5">
+            <dt class="w-40 shrink-0 text-slate-500">Supervisor</dt>
+            <dd><%= link_to @process.supervisor.name, process_path(@process.supervisor), class: "hover:underline" %></dd>
+          </div>
+        <% end %>
+      </dl>
+    </div>
+
+    <div class="<%= card_classes %>">
+      <div class="<%= card_header_classes %>"><h2 class="text-sm font-semibold">Configuration</h2></div>
+      <% if @process.metadata.present? %>
+        <dl class="divide-y divide-slate-100 text-sm dark:divide-slate-800/70">
+          <% @process.metadata.each do |key, value| %>
+            <%= render "solid_queue_panel/jobs/detail", label: key.to_s.humanize, value: value.is_a?(Array) ? value.join(", ") : value.to_s %>
+          <% end %>
+        </dl>
+      <% else %>
+        <%= render "solid_queue_panel/shared/empty_state", title: "This process reported no metadata", icon_name: "cog-6-tooth" %>
+      <% end %>
+    </div>
+  </div>
+
+  <%= render "solid_queue_panel/processes/running_jobs", claimed_executions: @claimed_executions, show_process: false %>
+</div>

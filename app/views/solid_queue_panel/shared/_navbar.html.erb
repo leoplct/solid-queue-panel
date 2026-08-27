@@ -1,0 +1,59 @@
+<header class="sticky top-0 z-20 border-b border-slate-200 bg-white/85 backdrop-blur dark:border-slate-800 dark:bg-slate-900/85">
+  <div class="mx-auto flex max-w-[1400px] flex-wrap items-center gap-3 px-4 pt-3 sm:px-6 lg:px-8">
+    <%= link_to root_path, class: "flex items-center gap-2 font-semibold" do %>
+      <span class="flex size-8 items-center justify-center rounded-lg bg-slate-900 text-white dark:bg-white dark:text-slate-900">
+        <%= icon "bolt", css_class: "size-5" %>
+      </span>
+      <span class="text-base"><%= panel_name %></span>
+    <% end %>
+
+    <div class="ml-auto flex items-center gap-2">
+      <% if read_only? %>
+        <%= badge "Read only", color: "amber", icon_name: "lock-closed" %>
+      <% end %>
+
+      <% if panel_configuration.polling? %>
+        <button type="button" data-sqp-poll-toggle aria-pressed="true"
+                title="Refresh this page every <%= polling_interval %> seconds"
+                class="<%= button_classes %>">
+          <span data-sqp-poll-dot class="size-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span data-sqp-poll-label>Live</span>
+        </button>
+      <% end %>
+
+      <% if sign_in_required? %>
+        <%= button_to logout_path, method: :delete, class: button_classes, title: "Sign out", form_class: "contents" do %>
+          <%= icon "arrow-uturn-left", css_class: "size-4" %>
+          <span class="sr-only sm:not-sr-only">Sign out</span>
+        <% end %>
+      <% end %>
+
+      <div class="inline-flex overflow-hidden rounded-md ring-1 ring-inset ring-slate-300 dark:ring-slate-700">
+        <% theme_options.each do |value, icon_name, label| %>
+          <% active = (current_theme || "system") == value %>
+          <%= button_to theme_path, method: :patch, params: { theme: value }, form_class: "contents",
+                        title: "#{label} theme", "aria-label": "#{label} theme",
+                        class: class_names("px-2 py-1.5", active ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800") do %>
+            <%= icon icon_name, css_class: "size-4" %>
+          <% end %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <nav class="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
+    <ul class="-mb-px flex gap-5 overflow-x-auto">
+      <% navigation_items.each do |item| %>
+        <li>
+          <%= link_to item.path, class: class_names(
+                "inline-flex items-center gap-2 whitespace-nowrap border-b-2 px-1 py-3 text-sm font-medium transition",
+                current_nav?(item) ? "border-slate-900 text-slate-900 dark:border-white dark:text-white" : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:hover:text-slate-200"
+              ) do %>
+            <%= icon item.icon, css_class: "size-4" %>
+            <%= item.label %>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+  </nav>
+</header>

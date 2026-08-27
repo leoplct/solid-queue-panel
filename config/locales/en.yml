@@ -1,0 +1,10 @@
+en:
+  solid_queue_panel:
+    statuses:
+      in_progress: In progress
+      queued: Queued
+      blocked: Blocked
+      scheduled: Scheduled
+      failed: Failed
+      finished: Finished
+      unknown: Unknown

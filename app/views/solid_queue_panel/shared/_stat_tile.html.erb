@@ -1,0 +1,7 @@
+<%# locals: (label:, value:, color:, path:, hint: nil) %>
+<%= link_to path, title: hint, class: "#{card_classes} block px-4 py-3 transition hover:ring-slate-300 dark:hover:ring-slate-700" do %>
+  <div class="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400"><%= label %></div>
+  <div class="mt-1 text-2xl font-semibold tabular-nums <%= color %>">
+    <%= value.is_a?(Numeric) ? number(value) : value %>
+  </div>
+<% end %>

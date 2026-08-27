@@ -1,0 +1,79 @@
+<% content_for :title, "Metrics" %>
+
+<div class="<%= card_classes %>">
+  <div class="<%= card_header_classes %>">
+    <div>
+      <h2 class="text-sm font-semibold">Per job class</h2>
+      <p class="mt-0.5 text-xs text-slate-500">
+        Durations are measured from enqueue to completion, so they include the time spent waiting in the queue.
+        <% if @metrics.sampled? %>
+          Averages are computed over the last <%= number @metrics.sample_size %> finished jobs.
+        <% end %>
+      </p>
+    </div>
+
+    <%= render "solid_queue_panel/shared/period_selector", current: @period %>
+  </div>
+
+  <% unless @metrics.finished_jobs_preserved? %>
+    <p class="border-b border-slate-200 bg-amber-50 px-4 py-2 text-xs text-amber-900 dark:border-slate-800 dark:bg-amber-500/10 dark:text-amber-200">
+      <code>SolidQueue.preserve_finished_jobs</code> is disabled: finished jobs are deleted as soon as they complete, so
+      only failures and jobs in progress are counted here.
+    </p>
+  <% end %>
+
+  <% if @metrics.any? %>
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
+        <thead class="bg-slate-50 dark:bg-slate-900/60">
+          <tr>
+            <th scope="col" class="<%= table_header_classes %>">
+              <%= link_to "Job class", url_with(sort: "class_name"), class: "hover:underline" %>
+            </th>
+            <th scope="col" class="<%= table_header_classes %> text-right">Enqueued</th>
+            <th scope="col" class="<%= table_header_classes %> text-right">
+              <%= link_to "Finished", url_with(sort: "finished"), class: "hover:underline" %>
+            </th>
+            <th scope="col" class="<%= table_header_classes %> text-right">
+              <%= link_to "Failed", url_with(sort: "failed"), class: "hover:underline" %>
+            </th>
+            <th scope="col" class="<%= table_header_classes %> text-right">Failure rate</th>
+            <th scope="col" class="<%= table_header_classes %> text-right">In progress</th>
+            <th scope="col" class="<%= table_header_classes %> text-right">
+              <%= link_to "Average time", url_with(sort: "average_duration"), class: "hover:underline" %>
+            </th>
+            <th scope="col" class="<%= table_header_classes %> text-right">
+              <%= link_to "Total time", url_with(sort: "total_duration"), class: "hover:underline" %>
+            </th>
+          </tr>
+        </thead>
+
+        <tbody class="divide-y divide-slate-100 dark:divide-slate-800/70">
+          <% @metrics.rows.each do |row| %>
+            <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+              <td class="px-4 py-2.5 text-sm font-medium">
+                <%= link_to row.class_name, jobs_path(search: row.class_name), class: "hover:underline" %>
+              </td>
+              <td class="<%= table_cell_classes %> text-right tabular-nums"><%= number row.enqueued %></td>
+              <td class="<%= table_cell_classes %> text-right tabular-nums text-emerald-600 dark:text-emerald-400"><%= number row.finished %></td>
+              <td class="<%= table_cell_classes %> text-right tabular-nums <%= "text-rose-600 dark:text-rose-400" if row.failed.positive? %>"><%= number row.failed %></td>
+              <td class="<%= table_cell_classes %> text-right tabular-nums"><%= row.failure_rate %>%</td>
+              <td class="<%= table_cell_classes %> text-right tabular-nums"><%= number row.in_progress %></td>
+              <td class="<%= table_cell_classes %> text-right tabular-nums">
+                <%= row.average_duration ? duration_in_words(row.average_duration) : "—" %>
+              </td>
+              <td class="<%= table_cell_classes %> text-right tabular-nums">
+                <%= row.total_duration&.positive? ? duration_in_words(row.total_duration) : "—" %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% else %>
+    <%= render "solid_queue_panel/shared/empty_state",
+               title: "No job ran in this period",
+               description: "Pick a longer period, or come back once some jobs have been processed.",
+               icon_name: "chart-pie" %>
+  <% end %>
+</div>

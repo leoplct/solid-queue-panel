@@ -1,0 +1,30 @@
+<%# locals: (pagination:) %>
+<div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-4 py-3 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">
+  <p>
+    <% if pagination.total_count.positive? %>
+      Showing <span class="font-medium text-slate-700 dark:text-slate-200"><%= number pagination.first_item %></span>
+      to <span class="font-medium text-slate-700 dark:text-slate-200"><%= number pagination.last_item %></span>
+      of <span class="font-medium text-slate-700 dark:text-slate-200"><%= number pagination.total_count %></span>
+    <% else %>
+      No records
+    <% end %>
+  </p>
+
+  <% if pagination.many_pages? %>
+    <div class="flex items-center gap-2">
+      <% if pagination.previous_page %>
+        <%= link_to url_with(page: pagination.previous_page), class: button_classes do %>
+          <%= icon "chevron-left", css_class: "size-4" %> Previous
+        <% end %>
+      <% end %>
+
+      <span class="px-1">Page <%= number pagination.page %> of <%= number pagination.total_pages %></span>
+
+      <% if pagination.next_page %>
+        <%= link_to url_with(page: pagination.next_page), class: button_classes do %>
+          Next <%= icon "chevron-right", css_class: "size-4" %>
+        <% end %>
+      <% end %>
+    </div>
+  <% end %>
+</div>

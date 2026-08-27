@@ -1,0 +1,61 @@
+<% content_for :title, @task.key %>
+
+<div class="space-y-4">
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <div>
+      <div class="flex items-center gap-2">
+        <h1 class="text-xl font-semibold"><%= @task.key %></h1>
+        <%= badge(@task.static? ? "static" : "dynamic", color: @task.static? ? "slate" : "violet") %>
+      </div>
+      <p class="mt-1 font-mono text-sm text-slate-500"><%= recurring_target(@task) %></p>
+    </div>
+
+    <%= link_to recurring_tasks_path, class: button_classes do %>
+      <%= icon "chevron-left", css_class: "size-4" %> All recurring tasks
+    <% end %>
+  </div>
+
+  <div class="grid gap-4 lg:grid-cols-2">
+    <div class="<%= card_classes %>">
+      <div class="<%= card_header_classes %>"><h2 class="text-sm font-semibold">Definition</h2></div>
+      <dl class="divide-y divide-slate-100 text-sm dark:divide-slate-800/70">
+        <%= render "solid_queue_panel/jobs/detail", label: "Schedule", value: @task.schedule %>
+        <%= render "solid_queue_panel/jobs/detail", label: "Description", value: @task.description %>
+        <%= render "solid_queue_panel/jobs/detail", label: "Class", value: @task.class_name %>
+        <%= render "solid_queue_panel/jobs/detail", label: "Command", value: @task.command %>
+        <%= render "solid_queue_panel/jobs/detail", label: "Arguments", value: recurring_arguments(@task) %>
+        <%= render "solid_queue_panel/jobs/detail", label: "Queue", value: @task.queue_name %>
+        <%= render "solid_queue_panel/jobs/detail", label: "Priority", value: @task.priority %>
+        <%= render "solid_queue_panel/jobs/detail", label: "Next run", value: absolute_time(recurring_next_time(@task)) %>
+      </dl>
+    </div>
+
+    <div class="<%= card_classes %>">
+      <div class="<%= card_header_classes %>">
+        <h2 class="text-sm font-semibold">Latest runs</h2>
+      </div>
+
+      <% if @executions.any? %>
+        <ul class="divide-y divide-slate-100 text-sm dark:divide-slate-800/70">
+          <% @executions.each do |execution| %>
+            <li class="flex items-center justify-between gap-3 px-4 py-2.5">
+              <div>
+                <% if execution.job %>
+                  <%= link_to "Job ##{execution.job.id}", job_path(execution.job), class: "font-medium hover:underline" %>
+                  <%= job_status_badge execution.job %>
+                <% else %>
+                  <span class="text-slate-400">Job already cleared</span>
+                <% end %>
+              </div>
+              <span class="text-xs text-slate-500" title="<%= absolute_time execution.run_at %>">
+                <%= relative_time execution.run_at %>
+              </span>
+            </li>
+          <% end %>
+        </ul>
+      <% else %>
+        <%= render "solid_queue_panel/shared/empty_state", title: "This task has not run yet", icon_name: "clock" %>
+      <% end %>
+    </div>
+  </div>
+</div>

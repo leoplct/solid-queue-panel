@@ -1,0 +1,26 @@
+<%# locals: (query:, url:) %>
+<%= form_with url: url, method: :get, class: "flex flex-wrap items-center gap-2" do |form| %>
+  <%= form.hidden_field :status, value: query.status %>
+
+  <label class="relative">
+    <span class="sr-only">Search jobs</span>
+    <span class="pointer-events-none absolute inset-y-0 left-2 flex items-center text-slate-400">
+      <%= icon "magnifying-glass", css_class: "size-4" %>
+    </span>
+    <%= form.search_field :search, value: query.search, placeholder: "Job class, job id or Active Job id",
+                          class: "w-72 rounded-md border-0 bg-white py-1.5 pl-8 pr-3 text-sm text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 dark:bg-slate-900 dark:text-slate-100 dark:ring-slate-700 dark:focus:ring-white" %>
+  </label>
+
+  <% if query.queue_name.present? %>
+    <%= form.hidden_field :queue_name, value: query.queue_name %>
+    <%= link_to url_with(queue_name: nil, page: nil), class: badge_color_classes("slate") + " inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ring-1 ring-inset" do %>
+      queue: <%= query.queue_name %> <%= icon "x-mark", css_class: "size-3.5" %>
+    <% end %>
+  <% end %>
+
+  <button type="submit" class="<%= button_classes %>">Search</button>
+
+  <% if query.filtered? %>
+    <%= link_to "Clear", url_with(search: nil, queue_name: nil, page: nil), class: "text-sm text-slate-500 underline-offset-2 hover:underline" %>
+  <% end %>
+<% end %>

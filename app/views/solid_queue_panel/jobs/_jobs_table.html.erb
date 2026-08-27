@@ -1,0 +1,57 @@
+<%# locals: (jobs:, query:, pagination:, bulk: false) %>
+<div class="<%= card_classes %>">
+  <div class="<%= card_header_classes %>">
+    <h2 class="text-sm font-semibold">
+      <%= query.status == "all" ? "All jobs" : status_label(query.status) %>
+      <span class="ml-1 text-slate-400">(<%= number pagination.total_count %>)</span>
+    </h2>
+
+    <% if bulk && !read_only? %>
+      <%= form_with url: bulk_jobs_path(query.to_params), method: :post, id: "sqp-bulk-form",
+                    data: { sqd_confirm: "Apply this action to the selected jobs?" },
+                    class: "flex items-center gap-2" do %>
+        <button type="submit" name="bulk_action" value="retry" class="<%= button_classes %>">
+          <%= icon "arrow-uturn-left", css_class: "size-4" %> Retry selected
+        </button>
+        <button type="submit" name="bulk_action" value="discard" class="<%= button_classes(:danger) %>">
+          <%= icon "trash", css_class: "size-4" %> Discard selected
+        </button>
+      <% end %>
+    <% end %>
+  </div>
+
+  <% if jobs.any? %>
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
+        <thead class="bg-slate-50 dark:bg-slate-900/60">
+          <tr>
+            <% if bulk && !read_only? %>
+              <th scope="col" class="w-10 px-4 py-2.5">
+                <input type="checkbox" data-sqp-bulk-all form="sqp-bulk-form" aria-label="Select all jobs on this page"
+                       class="size-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 dark:border-slate-600 dark:bg-slate-800">
+              </th>
+            <% end %>
+            <th scope="col" class="<%= table_header_classes %>">Job</th>
+            <th scope="col" class="<%= table_header_classes %>">Queue</th>
+            <th scope="col" class="<%= table_header_classes %>">Status</th>
+            <th scope="col" class="<%= table_header_classes %>">Attempts</th>
+            <th scope="col" class="<%= table_header_classes %>">When</th>
+            <th scope="col" class="<%= table_header_classes %>"><span class="sr-only">Actions</span></th>
+          </tr>
+        </thead>
+
+        <tbody class="divide-y divide-slate-100 dark:divide-slate-800/70">
+          <%= render partial: "solid_queue_panel/jobs/job_row", collection: jobs, as: :job,
+                     locals: { query: query, bulk: bulk } %>
+        </tbody>
+      </table>
+    </div>
+
+    <%= render "solid_queue_panel/shared/pagination", pagination: pagination %>
+  <% else %>
+    <%= render "solid_queue_panel/shared/empty_state",
+               title: "No jobs here",
+               description: query.filtered? ? "No job matches the current filters." : "Jobs will show up as soon as they are enqueued.",
+               icon_name: "rectangle-stack" %>
+  <% end %>
+</div>

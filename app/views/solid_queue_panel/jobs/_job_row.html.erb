@@ -1,0 +1,79 @@
+<% status = job_status(job) %>
+<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+  <% if bulk && !read_only? %>
+    <td class="px-4 py-2.5">
+      <input type="checkbox" name="job_ids[]" value="<%= job.id %>" form="sqp-bulk-form" data-sqp-bulk-item
+             aria-label="Select job <%= job.id %>"
+             class="size-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 dark:border-slate-600 dark:bg-slate-800">
+    </td>
+  <% end %>
+
+  <td class="px-4 py-2.5">
+    <%= link_to job_path(job), class: "font-medium text-slate-900 hover:underline dark:text-slate-100" do %>
+      <%= job.class_name %>
+    <% end %>
+    <div class="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
+      <span class="tabular-nums">#<%= job.id %></span>
+      <% if (arguments = job_arguments_summary(job)) %>
+        <span class="truncate font-mono" title="<%= arguments %>"><%= arguments %></span>
+      <% end %>
+    </div>
+  </td>
+
+  <td class="<%= table_cell_classes %>">
+    <%= queue_link job.queue_name, class: "hover:underline" %>
+    <% if job.priority.to_i != 0 %>
+      <span class="ml-1 text-xs text-slate-400">p<%= job.priority %></span>
+    <% end %>
+  </td>
+
+  <td class="<%= table_cell_classes %>"><%= job_status_badge job, status: status %></td>
+
+  <td class="<%= table_cell_classes %> tabular-nums"><%= job_attempts(job) %></td>
+
+  <td class="<%= table_cell_classes %>">
+    <% if status == :scheduled %>
+      due <%= relative_time job_due_at(job) %>
+    <% elsif status == :in_progress %>
+      running for <%= duration_in_words job_runtime(job) %>
+    <% elsif status == :finished %>
+      <%= relative_time job.finished_at %>
+    <% elsif status == :failed %>
+      <%= relative_time job.failed_execution&.created_at %>
+    <% else %>
+      <%= relative_time job.created_at %>
+    <% end %>
+  </td>
+
+  <td class="px-4 py-2.5">
+    <div class="flex items-center justify-end gap-1">
+      <% unless read_only? %>
+        <% if status == :failed %>
+          <%= button_to retry_job_path(job, query.to_params), method: :post, class: button_classes,
+                        title: "Retry this job", form_class: "contents" do %>
+            <%= icon "arrow-uturn-left", css_class: "size-4" %>
+          <% end %>
+        <% end %>
+
+        <% if status == :scheduled %>
+          <%= button_to dispatch_now_job_path(job, query.to_params), method: :post, class: button_classes,
+                        title: "Run now", form_class: "contents" do %>
+            <%= icon "forward", css_class: "size-4" %>
+          <% end %>
+        <% end %>
+
+        <% unless status == :in_progress %>
+          <%= button_to job_path(job, query.to_params), method: :delete, class: button_classes(:danger),
+                        title: "Discard this job", form_class: "contents",
+                        form: { data: { sqd_confirm: "Discard job ##{job.id}?" } } do %>
+            <%= icon "trash", css_class: "size-4" %>
+          <% end %>
+        <% end %>
+      <% end %>
+
+      <%= link_to job_path(job), class: button_classes, title: "Job details" do %>
+        <%= icon "arrow-right", css_class: "size-4" %>
+      <% end %>
+    </div>
+  </td>
+</tr>

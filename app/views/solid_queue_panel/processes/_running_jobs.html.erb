@@ -1,0 +1,58 @@
+<%# locals: (claimed_executions:, show_process: true) %>
+<div class="<%= card_classes %>">
+  <div class="<%= card_header_classes %>">
+    <h2 class="text-sm font-semibold">
+      Jobs in progress <span class="ml-1 text-slate-400">(<%= number claimed_executions.size %>)</span>
+    </h2>
+  </div>
+
+  <% if claimed_executions.any? %>
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
+        <thead class="bg-slate-50 dark:bg-slate-900/60">
+          <tr>
+            <th scope="col" class="<%= table_header_classes %>">Job</th>
+            <th scope="col" class="<%= table_header_classes %>">Queue</th>
+            <% if show_process %>
+              <th scope="col" class="<%= table_header_classes %>">Worker</th>
+            <% end %>
+            <th scope="col" class="<%= table_header_classes %>">Running for</th>
+          </tr>
+        </thead>
+
+        <tbody class="divide-y divide-slate-100 dark:divide-slate-800/70">
+          <% claimed_executions.each do |execution| %>
+            <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+              <td class="px-4 py-2.5">
+                <% if execution.job %>
+                  <%= link_to execution.job.class_name, job_path(execution.job), class: "text-sm font-medium hover:underline" %>
+                  <div class="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
+                    <span class="tabular-nums">#<%= execution.job.id %></span>
+                    <% if (arguments = job_arguments_summary(execution.job)) %>
+                      <span class="truncate font-mono"><%= arguments %></span>
+                    <% end %>
+                  </div>
+                <% else %>
+                  <span class="text-sm text-slate-400">Job <%= execution.job_id %> is gone</span>
+                <% end %>
+              </td>
+              <td class="<%= table_cell_classes %>"><%= execution.job&.queue_name %></td>
+              <% if show_process %>
+                <td class="<%= table_cell_classes %>">
+                  <% if execution.process %>
+                    <%= link_to execution.process.name, process_path(execution.process), class: "hover:underline" %>
+                  <% else %>
+                    <%= badge "orphaned", color: "rose" %>
+                  <% end %>
+                </td>
+              <% end %>
+              <td class="<%= table_cell_classes %> tabular-nums"><%= duration_in_words(Time.current - execution.created_at) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% else %>
+    <%= render "solid_queue_panel/shared/empty_state", title: "Nothing is running right now", icon_name: "bolt" %>
+  <% end %>
+</div>

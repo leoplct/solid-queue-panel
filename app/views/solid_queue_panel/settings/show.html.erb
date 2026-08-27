@@ -1,0 +1,74 @@
+<% content_for :title, "Settings" %>
+
+<div class="space-y-4">
+  <div class="grid gap-4 lg:grid-cols-2">
+    <%= render "solid_queue_panel/settings/settings_card", title: "Solid Queue", settings: @settings.solid_queue_settings,
+               description: "Set in config/initializers or config/environments" %>
+
+    <div class="space-y-4">
+      <%= render "solid_queue_panel/settings/settings_card", title: "Panel", settings: @settings.panel_settings %>
+      <%= render "solid_queue_panel/settings/settings_card", title: "Database", settings: @settings.database %>
+      <%= render "solid_queue_panel/settings/settings_card", title: "Versions", settings: @settings.versions %>
+    </div>
+  </div>
+
+  <div class="<%= card_classes %>">
+    <div class="<%= card_header_classes %>">
+      <h2 class="text-sm font-semibold">Configured processes</h2>
+      <p class="text-xs text-slate-500">What Solid Queue starts with the current configuration, defaults included.</p>
+    </div>
+
+    <% if @settings.configured_processes.present? %>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
+          <thead class="bg-slate-50 dark:bg-slate-900/60">
+            <tr>
+              <th scope="col" class="<%= table_header_classes %>">Kind</th>
+              <th scope="col" class="<%= table_header_classes %>">Settings</th>
+              <th scope="col" class="<%= table_header_classes %>">Running</th>
+            </tr>
+          </thead>
+
+          <tbody class="divide-y divide-slate-100 dark:divide-slate-800/70">
+            <% @settings.configured_processes.group_by(&:kind).each do |kind, processes| %>
+              <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                <td class="px-4 py-2.5 text-sm font-medium">
+                  <%= badge kind.to_s.titleize, color: kind.to_s == "worker" ? "blue" : "slate" %>
+                  <span class="ml-1 text-xs text-slate-400">× <%= processes.size %></span>
+                </td>
+                <td class="<%= table_cell_classes %> font-mono text-xs">
+                  <%= configured_process_settings(processes.first) %>
+                </td>
+                <td class="<%= table_cell_classes %> tabular-nums">
+                  <%= @registry.processes.count { |process| process.kind.downcase == kind.to_s.downcase } %> registered
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% else %>
+      <%= render "solid_queue_panel/shared/empty_state",
+                 title: "Configuration could not be read",
+                 description: "Solid Queue could not load its configuration file. Check config/queue.yml.",
+                 icon_name: "exclamation-triangle" %>
+    <% end %>
+  </div>
+
+  <div class="grid gap-4 lg:grid-cols-2">
+    <% [ @settings.queue_config_file, @settings.recurring_config_file ].each do |file| %>
+      <div class="<%= card_classes %>">
+        <div class="<%= card_header_classes %>">
+          <h2 class="font-mono text-sm font-semibold"><%= file.relative_path %></h2>
+          <%= badge(file.exist? ? "found" : "missing", color: file.exist? ? "emerald" : "slate") %>
+        </div>
+
+        <% if file.exist? %>
+          <pre class="max-h-96 overflow-auto p-4 font-mono text-xs leading-relaxed text-slate-700 dark:text-slate-300"><%= file.contents %></pre>
+        <% else %>
+          <%= render "solid_queue_panel/shared/empty_state", title: "This file does not exist", icon_name: "document-text" %>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+</div>

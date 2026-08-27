@@ -1,0 +1,14 @@
+<%# locals: (current:, tabs: nil) %>
+<div class="flex flex-wrap items-center gap-1">
+  <% (tabs || job_status_tabs).each do |value, label, count| %>
+    <%= link_to url_with(status: value, page: nil), class: class_names(
+          "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition",
+          current.to_s == value ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900" : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+        ) do %>
+      <%= label %>
+      <% if count %>
+        <span class="rounded-full bg-black/10 px-1.5 text-xs tabular-nums dark:bg-white/10"><%= number count %></span>
+      <% end %>
+    <% end %>
+  <% end %>
+</div>

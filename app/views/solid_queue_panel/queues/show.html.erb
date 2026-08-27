@@ -1,0 +1,49 @@
+<% content_for :title, "Queue #{@queue.name}" %>
+
+<div class="space-y-4">
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <div>
+      <div class="flex items-center gap-2">
+        <h1 class="text-xl font-semibold"><%= @queue.name %></h1>
+        <%= badge("paused", color: "amber", icon_name: "pause") if @summary.paused? %>
+      </div>
+      <p class="mt-1 text-sm text-slate-500">
+        <%= number @summary.pending %> pending · <%= number @summary.in_progress %> in progress ·
+        latency <%= duration_in_words @summary.latency %>
+      </p>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2">
+      <%= link_to queues_path, class: button_classes do %>
+        <%= icon "chevron-left", css_class: "size-4" %> All queues
+      <% end %>
+
+      <% unless read_only? %>
+        <% if @summary.paused? %>
+          <%= button_to "Resume", resume_queue_path(@queue.name), method: :post, class: button_classes(:primary), form_class: "contents" %>
+        <% else %>
+          <%= button_to "Pause", pause_queue_path(@queue.name), method: :post, class: button_classes, form_class: "contents" %>
+        <% end %>
+
+        <%= button_to "Clear", clear_queue_path(@queue.name), method: :delete, class: button_classes(:danger), form_class: "contents",
+                      form: { data: { sqd_confirm: "Discard all #{@summary.ready} jobs queued in #{@queue.name}?" } } %>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <%= render "solid_queue_panel/jobs/status_tabs", current: @query.status, tabs: [
+          [ "queued", "Queued", @summary.ready ],
+          [ "in_progress", "In progress", @summary.in_progress ],
+          [ "scheduled", "Scheduled", @summary.scheduled ],
+          [ "blocked", "Blocked", @summary.blocked ],
+          [ "failed", "Failed", @summary.failed ],
+          [ "finished", "Finished", nil ],
+          [ "all", "All", nil ]
+        ] %>
+
+    <%= render "solid_queue_panel/jobs/filters", query: @query, url: queue_path(@queue.name) %>
+  </div>
+
+  <%= render "solid_queue_panel/jobs/jobs_table", jobs: @jobs, query: @query, pagination: @pagination, bulk: true %>
+</div>

@@ -1,0 +1,10 @@
+development:
+  cleanup:
+    class: CleanupJob
+    schedule: every hour
+    description: Removes stale records
+
+test:
+  cleanup:
+    class: CleanupJob
+    schedule: every hour

@@ -1,0 +1,28 @@
+# frozen_string_literal: true
+
+SolidQueuePanel.configure do |config|
+  # Credentials of the built-in sign in form. Setting both turns authentication
+  # on; leaving them blank leaves the panel wide open, so only do that when it
+  # is mounted behind an authenticated route in config/routes.rb.
+  config.username = ENV.fetch("SOLID_QUEUE_PANEL_USERNAME", <%= options[:username].inspect %>)
+  config.password = ENV.fetch("SOLID_QUEUE_PANEL_PASSWORD") { Rails.application.credentials.dig(:solid_queue_panel, :password) }
+
+  # How long a browser stays signed in before the panel asks again.
+  # config.session_duration = 2.weeks
+
+  # Name shown in the navigation bar.
+  # config.application_name = "<%= Rails.application.class.module_parent_name %>"
+
+  # Hide and refuse every destructive action (retry, discard, pause, clear).
+  # config.read_only = false
+
+  # Seconds between two live refreshes, 0 to disable them.
+  # config.polling_interval = 5
+
+  # Rows per page in every table.
+  # config.page_size = 25
+
+  # Reuse the authentication of the host application instead of the sign in
+  # form above. The block runs in the controller.
+  # config.authenticate_with { redirect_to(main_app.root_path) unless current_user&.admin? }
+end

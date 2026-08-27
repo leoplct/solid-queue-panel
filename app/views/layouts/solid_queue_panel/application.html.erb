@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en" <%= tag.attributes(data: { theme: current_theme }) %>>
+  <head>
+    <title><%= page_title(content_for(:title)) %></title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+    <%= stylesheet_link_tag panel_stylesheet_url %>
+    <%= javascript_include_tag panel_javascript_url, defer: true %>
+  </head>
+
+  <body class="min-h-screen bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
+    <%= render "solid_queue_panel/shared/navbar" %>
+
+    <main class="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8">
+      <%= render "solid_queue_panel/shared/flash" %>
+
+      <%# Everything inside this element is replaced on every live refresh. %>
+      <div data-sqp-poll="<%= polling_interval %>" class="space-y-6">
+        <%= render "solid_queue_panel/shared/stat_bar" %>
+        <%= yield %>
+      </div>
+    </main>
+  </body>
+</html>

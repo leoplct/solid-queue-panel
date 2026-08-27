@@ -1,0 +1,157 @@
+<% content_for :title, "Dashboard" %>
+
+<div class="space-y-4">
+  <% if @health.any? %>
+    <div class="space-y-2">
+      <% @health.alerts.each do |alert| %>
+        <div class="flex items-start gap-2 rounded-lg px-4 py-3 text-sm ring-1 ring-inset <%= alert_classes(alert.level) %>">
+          <%= icon alert_icon(alert.level), css_class: "size-5 shrink-0" %>
+          <span><%= alert.message %></span>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+
+  <div class="<%= card_classes %>">
+    <div class="<%= card_header_classes %>">
+      <div class="flex flex-wrap items-center gap-4">
+        <h2 class="text-sm font-semibold">Throughput</h2>
+        <div class="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+          <span class="inline-flex items-center gap-1.5">
+            <span class="size-2 rounded-full bg-indigo-500"></span>
+            <%= number @throughput.enqueued %> enqueued · <%= rate_in_words @throughput.enqueued_rate %>
+          </span>
+          <span class="inline-flex items-center gap-1.5">
+            <span class="size-2 rounded-full bg-emerald-500"></span>
+            <%= number @throughput.finished %> finished · <%= rate_in_words @throughput.completion_rate %>
+          </span>
+          <span class="inline-flex items-center gap-1.5">
+            <span class="size-2 rounded-full bg-rose-500"></span>
+            <%= number @throughput.failed %> failed (<%= @throughput.failure_rate %>%)
+          </span>
+        </div>
+      </div>
+
+      <%= render "solid_queue_panel/shared/period_selector", current: @period %>
+    </div>
+
+    <div class="p-4">
+      <%= throughput_chart @throughput %>
+
+      <p class="mt-2 text-xs <%= @throughput.falling_behind? ? "text-amber-600 dark:text-amber-400" : "text-slate-500" %>">
+        <% if @throughput.falling_behind? %>
+          Jobs are arriving faster than they are being processed: the backlog is growing.
+        <% else %>
+          Workers are keeping up with the jobs being enqueued.
+        <% end %>
+        <span class="text-slate-400">· <%= duration_in_words @throughput.bucket_size %> buckets</span>
+      </p>
+      <% unless SolidQueue.preserve_finished_jobs? %>
+        <p class="mt-2 text-xs text-slate-500">
+          <code>preserve_finished_jobs</code> is disabled, so finished jobs are deleted immediately and cannot be charted.
+        </p>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="grid gap-4 lg:grid-cols-2">
+    <div class="<%= card_classes %>">
+      <div class="<%= card_header_classes %>">
+        <h2 class="text-sm font-semibold">Busiest queues</h2>
+        <%= link_to "All queues", queues_path, class: "text-sm text-slate-500 underline-offset-2 hover:underline" %>
+      </div>
+
+      <% if @queues.any? %>
+        <table class="min-w-full divide-y divide-slate-100 dark:divide-slate-800/70">
+          <tbody class="divide-y divide-slate-100 dark:divide-slate-800/70">
+            <% @queues.each do |queue| %>
+              <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                <td class="px-4 py-2.5 text-sm font-medium">
+                  <%= link_to queue.name, queue_path(name: queue.name), class: "hover:underline" %>
+                  <% if queue.paused? %><%= badge "paused", color: "amber", icon_name: "pause" %><% end %>
+                </td>
+                <td class="px-4 py-2.5 text-right text-sm tabular-nums text-slate-500">
+                  <%= number queue.ready %> queued
+                </td>
+                <td class="px-4 py-2.5 text-right text-sm tabular-nums text-slate-500">
+                  <%= number queue.in_progress %> running
+                </td>
+                <td class="px-4 py-2.5 text-right text-sm tabular-nums text-slate-500">
+                  <%= duration_in_words queue.latency %> latency
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      <% else %>
+        <%= render "solid_queue_panel/shared/empty_state", title: "No queues yet", icon_name: "queue-list" %>
+      <% end %>
+    </div>
+
+    <div class="<%= card_classes %>">
+      <div class="<%= card_header_classes %>">
+        <h2 class="text-sm font-semibold">Processes</h2>
+        <%= link_to "All processes", processes_path, class: "text-sm text-slate-500 underline-offset-2 hover:underline" %>
+      </div>
+
+      <div class="grid grid-cols-2 gap-px bg-slate-200 sm:grid-cols-4 dark:bg-slate-800">
+        <div class="bg-white p-4 dark:bg-slate-900">
+          <div class="text-xs uppercase tracking-wide text-slate-500">Processes</div>
+          <div class="mt-1 text-xl font-semibold tabular-nums"><%= number @registry.processes.size %></div>
+        </div>
+        <div class="bg-white p-4 dark:bg-slate-900">
+          <div class="text-xs uppercase tracking-wide text-slate-500">Threads</div>
+          <div class="mt-1 text-xl font-semibold tabular-nums"><%= number @registry.total_threads %></div>
+        </div>
+        <div class="bg-white p-4 dark:bg-slate-900">
+          <div class="text-xs uppercase tracking-wide text-slate-500">Busy</div>
+          <div class="mt-1 text-xl font-semibold tabular-nums"><%= number @registry.busy_threads %></div>
+        </div>
+        <div class="bg-white p-4 dark:bg-slate-900">
+          <div class="text-xs uppercase tracking-wide text-slate-500">Utilization</div>
+          <div class="mt-1 text-xl font-semibold tabular-nums"><%= @registry.utilization %>%</div>
+        </div>
+      </div>
+
+      <ul class="divide-y divide-slate-100 text-sm dark:divide-slate-800/70">
+        <% @registry.processes.first(5).each do |process| %>
+          <li class="flex items-center justify-between gap-3 px-4 py-2.5">
+            <div class="min-w-0">
+              <%= link_to process.name, process_path(process), class: "font-medium hover:underline" %>
+              <div class="text-xs text-slate-400"><%= process.kind %> · <%= process.hostname %></div>
+            </div>
+            <div class="text-right text-xs text-slate-500">
+              <%= @registry.alive?(process) ? badge("alive", color: "emerald") : badge("no heartbeat", color: "rose") %>
+              <div class="mt-1"><%= relative_time process.last_heartbeat_at %></div>
+            </div>
+          </li>
+        <% end %>
+      </ul>
+    </div>
+  </div>
+
+  <div class="<%= card_classes %>">
+    <div class="<%= card_header_classes %>">
+      <h2 class="text-sm font-semibold">Latest failures</h2>
+      <%= link_to "All failed jobs", jobs_path(status: "failed"), class: "text-sm text-slate-500 underline-offset-2 hover:underline" %>
+    </div>
+
+    <% if @recent_failures.any? %>
+      <ul class="divide-y divide-slate-100 dark:divide-slate-800/70">
+        <% @recent_failures.each do |job| %>
+          <li class="flex flex-wrap items-baseline justify-between gap-2 px-4 py-3">
+            <div class="min-w-0">
+              <%= link_to job.class_name, job_path(job), class: "text-sm font-medium hover:underline" %>
+              <p class="mt-0.5 truncate font-mono text-xs text-rose-600 dark:text-rose-400">
+                <%= failed_error_class(job.failed_execution) %>: <%= truncate(failed_error_message(job.failed_execution), length: 140) %>
+              </p>
+            </div>
+            <span class="text-xs text-slate-500"><%= relative_time job.failed_execution&.created_at %></span>
+          </li>
+        <% end %>
+      </ul>
+    <% else %>
+      <%= render "solid_queue_panel/shared/empty_state", title: "No failures", description: "Nothing has blown up recently.", icon_name: "check-circle" %>
+    <% end %>
+  </div>
+</div>

@@ -1,0 +1,10 @@
+<% content_for :title, "Jobs" %>
+
+<div class="space-y-4">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <%= render "solid_queue_panel/jobs/status_tabs", current: @query.status %>
+    <%= render "solid_queue_panel/jobs/filters", query: @query, url: jobs_path %>
+  </div>
+
+  <%= render "solid_queue_panel/jobs/jobs_table", jobs: @jobs, query: @query, pagination: @pagination, bulk: true %>
+</div>

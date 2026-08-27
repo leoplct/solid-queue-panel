@@ -1,0 +1,46 @@
+<%# locals: (process:, registry:, nested: false) %>
+<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+  <td class="px-4 py-2.5">
+    <div class="flex items-center gap-2 <%= "pl-5" if nested %>">
+      <% if nested %><span class="text-slate-300 dark:text-slate-600">└</span><% end %>
+      <%= link_to process.name, process_path(process), class: "text-sm font-medium hover:underline" %>
+    </div>
+    <div class="mt-0.5 text-xs text-slate-400"><%= process.hostname %> · pid <%= process.pid %></div>
+  </td>
+
+  <td class="<%= table_cell_classes %>"><%= badge process.kind, color: process.kind == "Worker" ? "blue" : "slate" %></td>
+
+  <td class="<%= table_cell_classes %> font-mono text-xs">
+    <%= process.metadata["queues"].presence || "—" %>
+  </td>
+
+  <td class="<%= table_cell_classes %> text-right tabular-nums">
+    <%= process.metadata["thread_pool_size"] || "—" %>
+  </td>
+
+  <td class="<%= table_cell_classes %> text-right tabular-nums">
+    <% if process.kind == "Worker" %>
+      <div class="flex items-center justify-end gap-2">
+        <span class="<%= "font-semibold text-blue-600 dark:text-blue-400" if registry.busy_count(process).positive? %>">
+          <%= registry.busy_count(process) %>
+        </span>
+        <%= meter_bar registry.busy_count(process), process.metadata["thread_pool_size"], width: 48 %>
+      </div>
+    <% else %>
+      —
+    <% end %>
+  </td>
+
+  <td class="<%= table_cell_classes %> text-right tabular-nums">
+    <%= process.metadata["polling_interval"] ? "#{process.metadata["polling_interval"]}s" : "—" %>
+  </td>
+
+  <td class="<%= table_cell_classes %>"><%= relative_time process.created_at %></td>
+
+  <td class="<%= table_cell_classes %>">
+    <div class="flex items-center gap-2">
+      <%= registry.alive?(process) ? badge("alive", color: "emerald") : badge("no heartbeat", color: "rose") %>
+      <span class="text-xs text-slate-400"><%= relative_time process.last_heartbeat_at %></span>
+    </div>
+  </td>
+</tr>

@@ -1,0 +1,23 @@
+<%# locals: (title:, settings:, description: nil) %>
+<div class="<%= card_classes %>">
+  <div class="<%= card_header_classes %>">
+    <h2 class="text-sm font-semibold"><%= title %></h2>
+    <% if description %>
+      <p class="text-xs text-slate-500"><%= description %></p>
+    <% end %>
+  </div>
+
+  <dl class="divide-y divide-slate-100 text-sm dark:divide-slate-800/70">
+    <% settings.each do |setting| %>
+      <div class="px-4 py-2.5">
+        <div class="flex flex-wrap items-baseline justify-between gap-2">
+          <dt class="font-mono text-slate-700 dark:text-slate-200"><%= setting.name %></dt>
+          <dd class="font-mono text-slate-900 dark:text-slate-100"><%= setting_value(setting.value) %></dd>
+        </div>
+        <% if setting.description %>
+          <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400"><%= setting.description %></p>
+        <% end %>
+      </div>
+    <% end %>
+  </dl>
+</div>

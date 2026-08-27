@@ -1,0 +1,10 @@
+<%# locals: (title:, description: nil, icon_name: "rectangle-stack") %>
+<div class="flex flex-col items-center justify-center px-6 py-12 text-center">
+  <span class="flex size-12 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800">
+    <%= icon icon_name, css_class: "size-6" %>
+  </span>
+  <p class="mt-3 text-sm font-medium text-slate-700 dark:text-slate-200"><%= title %></p>
+  <% if description %>
+    <p class="mt-1 max-w-md text-sm text-slate-500 dark:text-slate-400"><%= description %></p>
+  <% end %>
+</div>

@@ -1,0 +1,87 @@
+<% content_for :title, "Queues" %>
+
+<div class="<%= card_classes %>">
+  <div class="<%= card_header_classes %>">
+    <h2 class="text-sm font-semibold">Queues <span class="ml-1 text-slate-400">(<%= @queues.size %>)</span></h2>
+    <p class="text-xs text-slate-500">Latency is how long the oldest job has been waiting to be picked up.</p>
+  </div>
+
+  <% if @queues.any? %>
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
+        <thead class="bg-slate-50 dark:bg-slate-900/60">
+          <tr>
+            <th scope="col" class="<%= table_header_classes %>">Queue</th>
+            <th scope="col" class="<%= table_header_classes %>">Backlog</th>
+            <th scope="col" class="<%= table_header_classes %> text-right">Queued</th>
+            <th scope="col" class="<%= table_header_classes %> text-right">Scheduled</th>
+            <th scope="col" class="<%= table_header_classes %> text-right">Blocked</th>
+            <th scope="col" class="<%= table_header_classes %> text-right">In progress</th>
+            <th scope="col" class="<%= table_header_classes %> text-right">Failed</th>
+            <th scope="col" class="<%= table_header_classes %> text-right">Latency</th>
+            <th scope="col" class="<%= table_header_classes %>"><span class="sr-only">Actions</span></th>
+          </tr>
+        </thead>
+
+        <tbody class="divide-y divide-slate-100 dark:divide-slate-800/70">
+          <% @queues.each do |queue| %>
+            <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+              <td class="px-4 py-2.5">
+                <%= link_to queue.name, queue_path(queue.name), class: "text-sm font-medium hover:underline" %>
+                <% if queue.paused? %>
+                  <%= badge "paused", color: "amber", icon_name: "pause" %>
+                <% end %>
+              </td>
+              <td class="px-4 py-2.5">
+                <%= backlog_bar [
+                      [ "queued", queue.ready, "fill-indigo-500" ],
+                      [ "scheduled", queue.scheduled, "fill-violet-500" ],
+                      [ "blocked", queue.blocked, "fill-amber-500" ],
+                      [ "in progress", queue.in_progress, "fill-blue-500" ]
+                    ], total: @largest_queue %>
+              </td>
+              <td class="<%= table_cell_classes %> text-right tabular-nums font-medium"><%= number queue.ready %></td>
+              <td class="<%= table_cell_classes %> text-right tabular-nums"><%= number queue.scheduled %></td>
+              <td class="<%= table_cell_classes %> text-right tabular-nums"><%= number queue.blocked %></td>
+              <td class="<%= table_cell_classes %> text-right tabular-nums"><%= number queue.in_progress %></td>
+              <td class="<%= table_cell_classes %> text-right tabular-nums <%= "text-rose-600 dark:text-rose-400" if queue.failed.positive? %>">
+                <%= number queue.failed %>
+              </td>
+              <td class="<%= table_cell_classes %> text-right tabular-nums"><%= duration_in_words queue.latency %></td>
+              <td class="px-4 py-2.5">
+                <div class="flex items-center justify-end gap-1">
+                  <% unless read_only? %>
+                    <% if queue.paused? %>
+                      <%= button_to resume_queue_path(queue.name), method: :post, class: button_classes, title: "Resume queue", form_class: "contents" do %>
+                        <%= icon "play", css_class: "size-4" %>
+                      <% end %>
+                    <% else %>
+                      <%= button_to pause_queue_path(queue.name), method: :post, class: button_classes, title: "Pause queue", form_class: "contents" do %>
+                        <%= icon "pause", css_class: "size-4" %>
+                      <% end %>
+                    <% end %>
+
+                    <%= button_to clear_queue_path(queue.name), method: :delete, class: button_classes(:danger),
+                                  title: "Discard every queued job", form_class: "contents",
+                                  form: { data: { sqd_confirm: "Discard all #{queue.ready} jobs queued in #{queue.name}?" } } do %>
+                      <%= icon "trash", css_class: "size-4" %>
+                    <% end %>
+                  <% end %>
+
+                  <%= link_to queue_path(queue.name), class: button_classes, title: "Queue details" do %>
+                    <%= icon "arrow-right", css_class: "size-4" %>
+                  <% end %>
+                </div>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% else %>
+    <%= render "solid_queue_panel/shared/empty_state",
+               title: "No queues yet",
+               description: "Queues show up here as soon as a job is enqueued or a worker starts polling them.",
+               icon_name: "queue-list" %>
+  <% end %>
+</div>

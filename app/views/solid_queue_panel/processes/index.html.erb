@@ -1,0 +1,71 @@
+<% content_for :title, "Processes" %>
+
+<div class="space-y-4">
+  <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div class="<%= card_classes %> px-4 py-3">
+      <div class="text-xs font-medium uppercase tracking-wide text-slate-500">Processes</div>
+      <div class="mt-1 text-2xl font-semibold tabular-nums"><%= number @registry.processes.size %></div>
+    </div>
+    <div class="<%= card_classes %> px-4 py-3">
+      <div class="text-xs font-medium uppercase tracking-wide text-slate-500">Threads</div>
+      <div class="mt-1 text-2xl font-semibold tabular-nums"><%= number @registry.total_threads %></div>
+    </div>
+    <div class="<%= card_classes %> px-4 py-3">
+      <div class="text-xs font-medium uppercase tracking-wide text-slate-500">Busy</div>
+      <div class="mt-1 text-2xl font-semibold tabular-nums text-blue-600 dark:text-blue-400"><%= number @registry.busy_threads %></div>
+    </div>
+    <div class="<%= card_classes %> px-4 py-3">
+      <div class="text-xs font-medium uppercase tracking-wide text-slate-500">Utilization</div>
+      <div class="mt-1 text-2xl font-semibold tabular-nums"><%= @registry.utilization %>%</div>
+      <div class="mt-1"><%= meter_bar @registry.busy_threads, @registry.total_threads, width: 200 %></div>
+    </div>
+  </div>
+
+  <div class="<%= card_classes %>">
+    <div class="<%= card_header_classes %>">
+      <h2 class="text-sm font-semibold">Registered processes</h2>
+
+      <% if @registry.dead.any? && !read_only? %>
+        <%= button_to prune_processes_path, method: :post, class: button_classes(:danger), form_class: "contents",
+                      form: { data: { sqd_confirm: "Prune #{@registry.dead.size} process(es) with no heartbeat? Jobs they had claimed will be marked as failed." } } do %>
+          <%= icon "trash", css_class: "size-4" %> Prune dead processes
+        <% end %>
+      <% end %>
+    </div>
+
+    <% if @registry.any? %>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
+          <thead class="bg-slate-50 dark:bg-slate-900/60">
+            <tr>
+              <th scope="col" class="<%= table_header_classes %>">Process</th>
+              <th scope="col" class="<%= table_header_classes %>">Kind</th>
+              <th scope="col" class="<%= table_header_classes %>">Queues</th>
+              <th scope="col" class="<%= table_header_classes %> text-right">Threads</th>
+              <th scope="col" class="<%= table_header_classes %> text-right">Busy</th>
+              <th scope="col" class="<%= table_header_classes %> text-right">Polling</th>
+              <th scope="col" class="<%= table_header_classes %>">Started</th>
+              <th scope="col" class="<%= table_header_classes %>">Heartbeat</th>
+            </tr>
+          </thead>
+
+          <tbody class="divide-y divide-slate-100 dark:divide-slate-800/70">
+            <% @registry.supervisors.each do |supervisor| %>
+              <%= render "solid_queue_panel/processes/process_row", process: supervisor, registry: @registry %>
+              <% @registry.supervisees(supervisor).each do |supervisee| %>
+                <%= render "solid_queue_panel/processes/process_row", process: supervisee, registry: @registry, nested: true %>
+              <% end %>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% else %>
+      <%= render "solid_queue_panel/shared/empty_state",
+                 title: "No process is running",
+                 description: "Start Solid Queue with bin/jobs, or with the Puma plugin, and the workers will register here.",
+                 icon_name: "cpu-chip" %>
+    <% end %>
+  </div>
+
+  <%= render "solid_queue_panel/processes/running_jobs", claimed_executions: @registry.claimed_executions, show_process: true %>
+</div>
