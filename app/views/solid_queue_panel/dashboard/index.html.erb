@@ -43,9 +43,11 @@
               <th scope="col" class="<%= table_header_classes %> text-right">Pending</th>
               <th scope="col" class="<%= table_header_classes %>">Last added</th>
               <th scope="col" class="<%= table_header_classes %> text-right">ETA</th>
-              <th scope="col" class="<%= table_header_classes %> text-right" title="Jobs that raised an error and are waiting to run again">Retries</th>
+              <th scope="col" class="<%= table_header_classes %> text-right" title="Jobs held back by a concurrency limit until a slot frees up">Blocked</th>
               <th scope="col" class="<%= table_header_classes %> text-right" title="Jobs waiting for their scheduled time">Scheduled</th>
+              <th scope="col" class="<%= table_header_classes %> text-right" title="Jobs that raised an error and are waiting to run again">Retries</th>
               <th scope="col" class="<%= table_header_classes %> text-right" title="Jobs that failed and will not be retried until you say so">Dead</th>
+              <th scope="col" class="<%= table_header_classes %> text-right" title="Jobs finished in the last 24 hours, while Solid Queue keeps them">Finished 24h</th>
             </tr>
           </thead>
 
@@ -92,31 +94,16 @@
                   <% end %>
                 </td>
 
-                <td class="<%= table_cell_classes %> text-right tabular-nums">
-                  <% if row.retries.positive? %>
-                    <%= link_to number(row.retries), jobs_path(status: "scheduled", queue_name: row.name),
-                                class: "text-amber-600 hover:underline dark:text-amber-400" %>
-                  <% else %>
-                    <span class="text-slate-400">0</span>
-                  <% end %>
-                </td>
-
-                <td class="<%= table_cell_classes %> text-right tabular-nums">
-                  <% if row.scheduled.positive? %>
-                    <%= link_to number(row.scheduled), jobs_path(status: "scheduled", queue_name: row.name), class: "hover:underline" %>
-                  <% else %>
-                    <span class="text-slate-400">0</span>
-                  <% end %>
-                </td>
-
-                <td class="<%= table_cell_classes %> text-right tabular-nums">
-                  <% if row.dead.positive? %>
-                    <%= link_to number(row.dead), jobs_path(status: "failed", queue_name: row.name),
-                                class: "font-semibold text-rose-600 hover:underline dark:text-rose-400" %>
-                  <% else %>
-                    <span class="text-slate-400">0</span>
-                  <% end %>
-                </td>
+                <%= render "solid_queue_panel/dashboard/state_count", count: row.blocked, queue: row.name,
+                           status: "blocked", css_class: "text-amber-600 dark:text-amber-400" %>
+                <%= render "solid_queue_panel/dashboard/state_count", count: row.scheduled, queue: row.name,
+                           status: "scheduled" %>
+                <%= render "solid_queue_panel/dashboard/state_count", count: row.retries, queue: row.name,
+                           status: "scheduled", css_class: "text-amber-600 dark:text-amber-400" %>
+                <%= render "solid_queue_panel/dashboard/state_count", count: row.dead, queue: row.name,
+                           status: "failed", css_class: "font-semibold text-rose-600 dark:text-rose-400" %>
+                <%= render "solid_queue_panel/dashboard/state_count", count: row.finished, queue: row.name,
+                           status: "finished", css_class: "text-emerald-600 dark:text-emerald-400" %>
               </tr>
             <% end %>
           </tbody>

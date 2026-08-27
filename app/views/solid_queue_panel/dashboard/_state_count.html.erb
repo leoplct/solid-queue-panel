@@ -1,0 +1,8 @@
+<%# locals: (count:, queue:, status:, css_class: nil) %>
+<td class="<%= table_cell_classes %> text-right tabular-nums">
+  <% if count.positive? %>
+    <%= link_to number(count), jobs_path(status: status, queue_name: queue), class: "hover:underline #{css_class}" %>
+  <% else %>
+    <span class="text-slate-300 dark:text-slate-600">0</span>
+  <% end %>
+</td>

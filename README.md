@@ -179,8 +179,10 @@ there anyone working on it, and when will it be done?
   usually take](#how-long-a-job-takes). When some of the jobs waiting have never been seen before the
   estimate is shown as a floor ("at least 4m"), and when none of them has, it says `unknown` rather
   than making something up.
-- **Retries** are jobs that already raised an error and will run again, **Scheduled** are jobs waiting
-  for their time, and **Dead** are the ones that will not be retried until you say so.
+- The remaining columns are every state Solid Queue can put a job in: **Blocked** by a concurrency
+  limit, **Scheduled** for later, **Retries** for the ones that already raised and will run again,
+  **Dead** for the ones that failed and will not be retried until you say so, and **Finished 24h** for
+  the ones that made it, for as long as Solid Queue keeps them. Each number is a link to that list.
 
 ### How long a job takes
 

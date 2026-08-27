@@ -9,8 +9,11 @@ module SolidQueuePanel
   # what the number says is how many jobs of that queue *could* be running at
   # this moment, not how many are reserved for it.
   class QueueCapacity
-    Row = Struct.new(:name, :capacity, :in_progress, :pending, :retries, :scheduled, :dead, :last_enqueued_at,
-                     :work_seconds, :unknown_jobs, :paused, keyword_init: true) do
+    # Every state a job can be in, in the order it moves through them: waiting
+    # for its turn, waiting on a concurrency lock, waiting for its scheduled
+    # time, running, done, or done for.
+    Row = Struct.new(:name, :capacity, :in_progress, :pending, :blocked, :scheduled, :retries, :dead, :finished,
+                     :last_enqueued_at, :work_seconds, :unknown_jobs, :paused, keyword_init: true) do
       def paused?
         paused
       end
@@ -19,8 +22,14 @@ module SolidQueuePanel
         capacity.positive? ? (in_progress.to_f / capacity * 100) : 0.0
       end
 
+      # What a worker will pick up without anything else having to happen first.
       def backlog
         in_progress + pending
+      end
+
+      # Everything that has not run yet, whatever it is waiting for.
+      def waiting
+        pending + blocked + scheduled
       end
 
       def idle?
@@ -102,9 +111,11 @@ module SolidQueuePanel
           capacity: capacity_for(queue.name),
           in_progress: queue.in_progress,
           pending: queue.ready,
-          retries: queue.retries,
+          blocked: queue.blocked,
           scheduled: queue.scheduled,
+          retries: queue.retries,
           dead: queue.failed,
+          finished: trends.finished(queue.name),
           last_enqueued_at: queue.newest_enqueued_at,
           work_seconds: work.fetch(queue.name, ZERO_WORK)[:seconds],
           unknown_jobs: work.fetch(queue.name, ZERO_WORK)[:unknown],

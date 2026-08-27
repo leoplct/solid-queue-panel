@@ -22,6 +22,11 @@ class PagesTest < SolidQueuePanel::IntegrationTestCase
     assert_select "h2", text: /Capacity/
     assert_select "a", text: "reports"
     assert_select "svg[aria-label*=?]", "enqueued", minimum: 2, message: "each queue gets a sparkline"
+
+    %w[Pending Blocked Scheduled Retries Dead].each do |state|
+      assert_select "th", text: /#{state}/, message: "#{state} should have a column"
+    end
+    assert_select "th", text: /Finished/
   end
 
   test "dashboard lists the jobs being processed right now" do

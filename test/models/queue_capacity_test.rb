@@ -49,6 +49,27 @@ module SolidQueuePanel
       assert_in_delta 50.0, row.utilization, 0.1
     end
 
+    test "every state Solid Queue can put a job in has its own number" do
+      worker = create_process(metadata: { "queues" => "*", "thread_pool_size" => 4 })
+      create_job(queue_name: "reports")
+      create_job(queue_name: "reports", status: :in_progress, process: worker)
+      create_job(queue_name: "reports", status: :blocked)
+      create_job(queue_name: "reports", status: :scheduled)
+      create_job(queue_name: "reports", status: :failed)
+      2.times { create_job(queue_name: "reports", status: :finished) }
+
+      row = QueueCapacity.new.rows.first
+
+      assert_equal 1, row.pending, "waiting to be claimed"
+      assert_equal 1, row.in_progress, "claimed by a worker"
+      assert_equal 1, row.blocked, "held back by a concurrency limit"
+      assert_equal 1, row.scheduled, "waiting for its time"
+      assert_equal 1, row.dead, "failed and not retried"
+      assert_equal 2, row.finished, "finished in the period"
+      assert_equal 3, row.waiting, "everything that has not run yet"
+      assert_equal 2, row.backlog, "what a worker can pick up now"
+    end
+
     test "separates retries, scheduled jobs and dead ones" do
       create_process(metadata: { "queues" => "*", "thread_pool_size" => 4 })
       create_job(queue_name: "reports")
