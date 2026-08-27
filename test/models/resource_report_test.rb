@@ -25,6 +25,18 @@ module SolidQueuePanel
       assert_equal 10, hosts["jobs-01"].total_worker_threads
     end
 
+    test "reports nothing until the tables are installed" do
+      sample("worker-1")
+
+      without_resource_metrics do
+        report = ResourceReport.new
+
+        assert_not_predicate report, :installed?
+        assert_not_predicate report, :any?
+        assert_empty report.hosts
+      end
+    end
+
     test "readings older than a few minutes are not the current state" do
       sample("worker-1", at: 30.minutes.ago)
 

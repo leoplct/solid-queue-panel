@@ -15,8 +15,23 @@ ActiveRecord::MigrationContext.new(File.expand_path("dummy/db/migrate", __dir__)
 require_relative "support/job_factory"
 
 module SolidQueuePanel
+  # Runs a block as if the resource metrics tables had never been installed,
+  # which is how the panel starts out in every application.
+  module WithoutResourceMetrics
+    def without_resource_metrics
+      SolidQueuePanel.singleton_class.alias_method :recorded_resource_metrics?, :resource_metrics?
+      SolidQueuePanel.define_singleton_method(:resource_metrics?) { false }
+
+      yield
+    ensure
+      SolidQueuePanel.singleton_class.alias_method :resource_metrics?, :recorded_resource_metrics?
+      SolidQueuePanel.singleton_class.remove_method :recorded_resource_metrics?
+    end
+  end
+
   class TestCase < ActiveSupport::TestCase
     include JobFactory
+    include WithoutResourceMetrics
 
     setup { reset_solid_queue }
     teardown { SolidQueuePanel.configuration.read_only = false }
@@ -24,6 +39,7 @@ module SolidQueuePanel
 
   class IntegrationTestCase < ActionDispatch::IntegrationTest
     include JobFactory
+    include WithoutResourceMetrics
 
     setup { reset_solid_queue }
 

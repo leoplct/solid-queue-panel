@@ -32,12 +32,30 @@ class PagesTest < SolidQueuePanel::IntegrationTestCase
   end
 
   test "resources page explains how to install the metrics when they are missing" do
+    without_resource_metrics do
+      get panel.resources_path
+
+      assert_response :success
+      assert_match "solid_queue_panel:resource_metrics", response.body
+    end
+  end
+
+  test "resources page waits for the first reading once the tables are there" do
     SolidQueuePanel::ProcessSample.delete_all
 
     get panel.resources_path
 
     assert_response :success
     assert_match "No reading yet", response.body
+  end
+
+  test "the dashboard works without the resource metrics" do
+    without_resource_metrics do
+      get panel.root_path
+
+      assert_response :success
+      assert_select "h2", text: /Capacity/
+    end
   end
 
   test "resources page shows what each machine is using" do

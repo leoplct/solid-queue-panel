@@ -24,6 +24,15 @@ module SolidQueuePanel
       assert_in_delta 6.0, durations.average_seconds("ReportJob"), 1
     end
 
+    test "without the resource metrics tables it estimates from finished jobs" do
+      job = create_job(class_name: "ReportJob", status: :finished)
+      job.update!(created_at: 4.seconds.ago, finished_at: Time.current)
+
+      without_resource_metrics do
+        assert_equal :estimated, JobDurations.new.source
+      end
+    end
+
     test "an unknown class falls back to the average of the others" do
       JobUsage.create!(class_name: "ReportJob", bucket_at: JobUsage.bucket_for(Time.current), executions: 1, wall_ms: 4_000)
 
