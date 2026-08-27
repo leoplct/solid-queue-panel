@@ -125,7 +125,7 @@ config.read_only = true   # hides and refuses retry, discard, pause, resume, cle
 
 | Page | What it shows |
 | --- | --- |
-| **Dashboard** | The [capacity table](#capacity-and-eta): for every queue, the threads that can work on it, what they are running right now, what is pending, when it was last added to, and when it will be empty — plus retries, scheduled and dead jobs. Along with every job being processed right now, and alerts when something is silently wrong: no worker running, dead processes, paused queues, a different Active Job adapter. |
+| **Dashboard** | The [capacity table](#capacity-and-eta): for every queue, the threads that can work on it, what they are running right now, what is pending, when it was last added to, and when it will be empty — plus retries, scheduled and dead jobs. Along with every job being processed right now, each with a progress bar of how long it has been running against how long jobs like it take, and alerts when something is silently wrong: no worker running, dead processes, paused queues, a different Active Job adapter. |
 | **Processes** | Supervisors with their workers, dispatchers and schedulers: queues polled, thread pool size and how much of it is busy, polling interval, heartbeat, and every job currently running. Dead processes can be pruned from here. |
 | **Queues** | Per queue counters and a backlog bar broken down by state, plus latency — how long the oldest job has been waiting. Queues can be paused, resumed and cleared. |
 | **Queue detail** | The jobs of a single queue, filtered by state: the fastest way to answer "what is stuck in this queue?". |
@@ -172,11 +172,30 @@ there anyone working on it, and when will it be done?
   red when every thread is taken.
 - **Pending** is what is waiting in the queue, and **Last added** is how long ago the queue was last
   added to.
-- **ETA** spreads the work waiting over the threads that can pick it up. It uses the real duration of
-  each job class when the [resource metrics](#resource-metrics) are installed, and falls back to the
-  time from enqueue to completion otherwise, which reads long because it includes the wait.
+- **ETA** spreads the work waiting over the threads that can pick it up, using [what jobs like those
+  usually take](#how-long-a-job-takes). When some of the jobs waiting have never been seen before the
+  estimate is shown as a floor ("at least 4m"), and when none of them has, it says `unknown` rather
+  than making something up.
 - **Retries** are jobs that already raised an error and will run again, **Scheduled** are jobs waiting
   for their time, and **Dead** are the ones that will not be retried until you say so.
+
+### How long a job takes
+
+Estimates — the ETA of a queue, the progress bar of a running job — are only as good as what they are
+based on, so the panel looks for the most specific answer it has and says which one it used:
+
+1. **The same job with the same arguments.** `SyncJob.perform_later(10)` and
+   `SyncJob.perform_later(2_000)` are the same class and rarely the same amount of work, so runs are
+   remembered per set of arguments. This needs the [resource metrics](#resource-metrics), which record
+   the execution time measured inside the workers.
+2. **The same job class**, when those particular arguments have never been seen.
+3. **Nothing.** No history, no estimate: the panel shows `unknown` and no progress bar, instead of a
+   number that would be a guess.
+
+Hovering a progress bar tells you when the job is expected to finish, how many runs the estimate is
+based on, and whether those runs were measured inside the worker or inferred from the time between
+enqueue and completion. A bar that fills past 100% turns red: the job is taking longer than its
+history says it should.
 
 ### Removing duplicates
 
@@ -217,9 +236,11 @@ What gets recorded, from inside the Solid Queue processes themselves:
 - **Per process**, every 30 seconds: resident memory and CPU, plus the memory, cores and load average
   of the machine. In a container the cgroup limits are read instead of the size of the host, which is
   what you want on Kubernetes, Docker or a Heroku-style dyno.
-- **Per job class**, accumulated in memory and written on the same tick: how many jobs ran, how long
-  they took, how much CPU they used (measured on the thread that ran the job) and how much the
-  process grew while they ran.
+- **Per job class, and per set of arguments**, accumulated in memory and written on the same tick: how
+  many jobs ran, how long they took, how much CPU they used (measured on the thread that ran the job)
+  and how much the process grew while they ran. Jobs called with a different argument every time would
+  fill the table with rows nobody will ever read, so only the most frequent sets of each tick are kept
+  — at most 25 per class — while the total of the class is always written.
 
 That is one row per process per sample, and a handful of rows an hour for the job usage — no matter
 how many jobs run. Samples are pruned after three days.

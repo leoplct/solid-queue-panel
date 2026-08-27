@@ -9,7 +9,16 @@ ActiveRecord::Migration.verbose = false
 load File.expand_path("dummy/db/queue_schema.rb", __dir__)
 
 # The resource metrics tables come from the migration the gem generates, so the
-# tests run against the very migration applications get.
+# tests run against the very migration applications get. The test database is
+# disposable, so it is rebuilt from scratch on every run.
+ActiveRecord::Base.connection_pool.with_connection do |connection|
+  %w[solid_queue_panel_process_samples solid_queue_panel_job_usages].each do |table|
+    connection.drop_table(table, if_exists: true)
+  end
+
+  connection.execute("DELETE FROM schema_migrations") if connection.table_exists?("schema_migrations")
+end
+
 ActiveRecord::MigrationContext.new(File.expand_path("dummy/db/migrate", __dir__)).migrate
 
 require_relative "support/job_factory"

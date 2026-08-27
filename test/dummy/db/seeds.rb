@@ -161,8 +161,9 @@ if SolidQueuePanel.resource_metrics?
         bucket_at: SolidQueuePanel::JobUsage.bucket_for(hour.hours.ago),
         executions: executions,
         failures: class_name == "BrokenJob" ? rand(0..2) : 0,
-        cpu_ms: (executions * weight * rand(400..900)).to_i,
-        wall_ms: (executions * weight * rand(700..1800)).to_i,
+        # Jobs that take tens of seconds to a few minutes, like real background work.
+        cpu_ms: (executions * weight * rand(4_000..20_000)).to_i,
+        wall_ms: (executions * weight * rand(15_000..60_000)).to_i,
         memory_growth_kb: (executions * weight * rand(200..2_500)).to_i,
         max_rss_kb: (180_000 + weight * rand(5_000..40_000)).to_i,
         created_at: Time.current,
@@ -172,6 +173,34 @@ if SolidQueuePanel.resource_metrics?
   end
 
   SolidQueuePanel::JobUsage.insert_all(usages)
+
+  # The jobs being processed right now get a history of their own arguments, and
+  # start times spread around it, so the progress bars show a realistic mix.
+  averages = SolidQueuePanel::JobUsage.totals.group(:class_name).pluck(
+    :class_name, Arel.sql("SUM(wall_ms)"), Arel.sql("SUM(executions)")
+  ).to_h { |class_name, wall_ms, executions| [ class_name, wall_ms.to_f / [ executions, 1 ].max ] }
+
+  SolidQueue::ClaimedExecution.includes(:job).each do |execution|
+    average_ms = averages.fetch(execution.job.class_name, 5_000)
+
+    executions = rand(3..40)
+    expected_ms = average_ms * rand(0.7..1.4)
+
+    SolidQueuePanel::JobUsage.create!(
+      class_name: execution.job.class_name,
+      arguments_fingerprint: SolidQueuePanel::ArgumentsFingerprint.for(execution.job),
+      bucket_at: SolidQueuePanel::JobUsage.bucket_for(1.hour.ago),
+      executions: executions,
+      cpu_ms: (expected_ms * 0.6 * executions).to_i,
+      wall_ms: (expected_ms * executions).to_i,
+      memory_growth_kb: rand(500..8_000),
+      max_rss_kb: rand(200_000..320_000)
+    )
+
+    # Started somewhere between just now and just about to finish, so the bars
+    # show the whole range.
+    execution.update_columns(created_at: (expected_ms / 1000.0 * rand(0.05..0.95)).seconds.ago)
+  end
 
   puts "Seeded #{SolidQueuePanel::ProcessSample.count} resource samples and #{SolidQueuePanel::JobUsage.count} job usage buckets."
 end

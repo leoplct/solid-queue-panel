@@ -44,14 +44,16 @@ module SolidQueuePanel
     end
 
     test "series are bucketed over the period" do
-      sample("worker-1", rss_kb: 200_000, at: 30.minutes.ago)
-      sample("worker-1", rss_kb: 300_000)
+      sample("worker-1", rss_kb: 204_800, at: 3.hours.ago)
+      sample("worker-1", rss_kb: 307_200)
 
       report = ResourceReport.new(period: TimePeriod.new(24))
-      host = report.hosts.sole
+      series = report.worker_memory_series(report.hosts.sole)
+      values = series.filter_map(&:last)
 
-      assert_equal 25, report.worker_memory_series(host).size
-      assert_in_delta 292.9, report.worker_memory_series(host).filter_map(&:last).last, 1
+      assert_equal 25, series.size, "one bucket an hour, plus the one in progress"
+      assert_includes values, 200.0
+      assert_equal 300.0, values.last
     end
 
     test "the heaviest job classes come first" do

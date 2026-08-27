@@ -15,6 +15,12 @@ module SolidQueuePanel
     JOB_EVENT = "perform.active_job"
     PRUNE_EVERY = 120
 
+    # Sets of arguments to remember per class and per flush. Jobs called with a
+    # different argument every time would otherwise write one row per run, so
+    # only the most frequent ones of each tick are kept; the total of the class
+    # is always written.
+    MAX_ARGUMENT_SETS = 25
+
     class << self
       def start(kind:)
         return if @recorder || !SolidQueuePanel.resource_metrics?
@@ -45,7 +51,7 @@ module SolidQueuePanel
       @kind = kind
       @machine = machine
       @configuration = configuration
-      @usage = Hash.new { |usage, class_name| usage[class_name] = new_usage }
+      @usage = Hash.new { |usage, key| usage[key] = new_usage }
       @mutex = Mutex.new
       @ticks = 0
       @cpu_time = machine.process_cpu_time
@@ -70,9 +76,9 @@ module SolidQueuePanel
     end
 
     # Called by the subscriber once per job execution, on the thread that ran it.
-    def track(class_name:, cpu_ms:, wall_ms:, memory_growth_kb:, rss_kb:, failed:)
+    def track(class_name:, arguments_fingerprint:, cpu_ms:, wall_ms:, memory_growth_kb:, rss_kb:, failed:)
       mutex.synchronize do
-        usage = @usage[class_name]
+        usage = @usage[[ class_name, arguments_fingerprint.to_s ]]
         usage[:executions] += 1
         usage[:failures] += 1 if failed
         usage[:cpu_ms] += cpu_ms
@@ -128,15 +134,43 @@ module SolidQueuePanel
       def flush_job_usage
         pending = mutex.synchronize do
           collected = @usage
-          @usage = Hash.new { |usage, class_name| usage[class_name] = new_usage }
+          @usage = Hash.new { |usage, key| usage[key] = new_usage }
           collected
         end
 
         bucket_at = JobUsage.bucket_for(Time.current)
 
-        pending.each do |class_name, usage|
+        class_totals(pending).each do |class_name, usage|
           JobUsage.accumulate(class_name: class_name, bucket_at: bucket_at, **usage)
         end
+
+        frequent_argument_sets(pending).each do |(class_name, fingerprint), usage|
+          JobUsage.accumulate(class_name: class_name, arguments_fingerprint: fingerprint, bucket_at: bucket_at, **usage)
+        end
+      end
+
+      def class_totals(pending)
+        pending.each_with_object(Hash.new { |totals, class_name| totals[class_name] = new_usage }) do |((class_name, _fingerprint), usage), totals|
+          merge_usage(totals[class_name], usage)
+        end
+      end
+
+      def frequent_argument_sets(pending)
+        pending
+          .reject { |(_class_name, fingerprint), _usage| fingerprint.blank? }
+          .group_by { |(class_name, _fingerprint), _usage| class_name }
+          .flat_map { |_class_name, entries| entries.max_by(MAX_ARGUMENT_SETS) { |_key, usage| usage[:executions] } }
+          .to_h
+      end
+
+      def merge_usage(into, usage)
+        into[:executions] += usage[:executions]
+        into[:failures] += usage[:failures]
+        into[:cpu_ms] += usage[:cpu_ms]
+        into[:wall_ms] += usage[:wall_ms]
+        into[:memory_growth_kb] += usage[:memory_growth_kb]
+        into[:max_rss_kb] = usage[:max_rss_kb] if usage[:max_rss_kb] > into[:max_rss_kb]
+        into
       end
 
       def prune_periodically
@@ -199,6 +233,7 @@ module SolidQueuePanel
 
           @recorder.track(
             class_name: payload[:job].class.name,
+            arguments_fingerprint: ArgumentsFingerprint.for(payload[:job]),
             cpu_ms: ((Machine.thread_cpu_time - cpu) * 1000).round,
             wall_ms: ((monotonic_time - clock) * 1000).round,
             memory_growth_kb: [ current_rss - rss, 0 ].max,

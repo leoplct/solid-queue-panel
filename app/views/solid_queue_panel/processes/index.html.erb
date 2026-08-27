@@ -1,26 +1,6 @@
 <% content_for :title, "Processes" %>
 
 <div class="space-y-4">
-  <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-    <div class="<%= card_classes %> px-4 py-3">
-      <div class="text-xs font-medium uppercase tracking-wide text-slate-500">Processes</div>
-      <div class="mt-1 text-2xl font-semibold tabular-nums"><%= number @registry.processes.size %></div>
-    </div>
-    <div class="<%= card_classes %> px-4 py-3">
-      <div class="text-xs font-medium uppercase tracking-wide text-slate-500">Threads</div>
-      <div class="mt-1 text-2xl font-semibold tabular-nums"><%= number @registry.total_threads %></div>
-    </div>
-    <div class="<%= card_classes %> px-4 py-3">
-      <div class="text-xs font-medium uppercase tracking-wide text-slate-500">Busy</div>
-      <div class="mt-1 text-2xl font-semibold tabular-nums text-blue-600 dark:text-blue-400"><%= number @registry.busy_threads %></div>
-    </div>
-    <div class="<%= card_classes %> px-4 py-3">
-      <div class="text-xs font-medium uppercase tracking-wide text-slate-500">Utilization</div>
-      <div class="mt-1 text-2xl font-semibold tabular-nums"><%= @registry.utilization %>%</div>
-      <div class="mt-1"><%= meter_bar @registry.busy_threads, @registry.total_threads, width: 200 %></div>
-    </div>
-  </div>
-
   <div class="<%= card_classes %>">
     <div class="<%= card_header_classes %>">
       <h2 class="text-sm font-semibold">Registered processes</h2>

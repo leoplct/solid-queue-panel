@@ -27,6 +27,9 @@ class CreateSolidQueuePanelResourceMetrics < ActiveRecord::Migration<%= migratio
 
     create_table :solid_queue_panel_job_usages do |t|
       t.string :class_name, null: false
+      # Empty for the total of the class, a fingerprint of the arguments for the
+      # rows that describe one particular set of them.
+      t.string :arguments_fingerprint, null: false, default: ""
       t.datetime :bucket_at, null: false
 
       t.integer :executions, null: false, default: 0
@@ -38,7 +41,7 @@ class CreateSolidQueuePanelResourceMetrics < ActiveRecord::Migration<%= migratio
 
       t.timestamps
 
-      t.index [ :class_name, :bucket_at ], unique: true
+      t.index [ :class_name, :arguments_fingerprint, :bucket_at ], unique: true, name: "index_solid_queue_panel_job_usages_uniqueness"
       t.index :bucket_at
     end
   end

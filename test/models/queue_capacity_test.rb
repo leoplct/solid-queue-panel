@@ -91,6 +91,30 @@ module SolidQueuePanel
       assert_in_delta 6.0, capacity.rows.first.eta_seconds, 0.01
     end
 
+    test "jobs nothing is known about make the estimate unknown" do
+      create_process(metadata: { "queues" => "*", "thread_pool_size" => 2 })
+      create_job(queue_name: "reports", class_name: "NeverSeenJob")
+
+      row = QueueCapacity.new.rows.first
+
+      assert_predicate row, :unknown_eta?
+      assert_nil row.eta_seconds
+      assert_equal 1, row.unknown_jobs
+    end
+
+    test "an estimate covering only part of the queue is a floor" do
+      create_process(metadata: { "queues" => "*", "thread_pool_size" => 1 })
+      create_job(queue_name: "reports", class_name: "ReportJob")
+      create_job(queue_name: "reports", class_name: "NeverSeenJob")
+
+      capacity = QueueCapacity.new(durations: PartialDurations.new("ReportJob" => 4.0))
+      row = capacity.rows.first
+
+      assert_predicate row, :partial_eta?
+      assert_in_delta 4.0, row.eta_seconds, 0.01
+      assert_equal 1, row.unknown_jobs
+    end
+
     test "there is no estimate without a worker" do
       create_job(queue_name: "reports")
 
@@ -121,6 +145,20 @@ module SolidQueuePanel
       assert_nil row.eta_seconds
     end
 
+    class PartialDurations
+      def initialize(seconds_by_class)
+        @seconds_by_class = seconds_by_class
+      end
+
+      def average_seconds(class_name)
+        @seconds_by_class[class_name]
+      end
+
+      def basis
+        :measured
+      end
+    end
+
     class FixedDurations
       def initialize(seconds)
         @seconds = seconds
@@ -130,7 +168,7 @@ module SolidQueuePanel
         @seconds
       end
 
-      def source
+      def basis
         :measured
       end
     end

@@ -34,13 +34,13 @@ module SolidQueuePanel
     end
 
     test "job usage is accumulated in memory and written on the tick" do
-      @recorder.track(class_name: "ReportJob", cpu_ms: 100, wall_ms: 250, memory_growth_kb: 40, rss_kb: 300_000, failed: false)
-      @recorder.track(class_name: "ReportJob", cpu_ms: 300, wall_ms: 450, memory_growth_kb: 10, rss_kb: 280_000, failed: true)
+      @recorder.track(class_name: "ReportJob", arguments_fingerprint: "abc", cpu_ms: 100, wall_ms: 250, memory_growth_kb: 40, rss_kb: 300_000, failed: false)
+      @recorder.track(class_name: "ReportJob", arguments_fingerprint: "abc", cpu_ms: 300, wall_ms: 450, memory_growth_kb: 10, rss_kb: 280_000, failed: true)
 
       assert_equal 0, JobUsage.count
 
       @recorder.tick
-      usage = JobUsage.sole
+      usage = JobUsage.totals.sole
 
       assert_equal "ReportJob", usage.class_name
       assert_equal 2, usage.executions
@@ -53,13 +53,12 @@ module SolidQueuePanel
     end
 
     test "the same hour keeps adding to the same bucket" do
-      @recorder.track(class_name: "ReportJob", cpu_ms: 100, wall_ms: 100, memory_growth_kb: 0, rss_kb: 1, failed: false)
+      @recorder.track(class_name: "ReportJob", arguments_fingerprint: "abc", cpu_ms: 100, wall_ms: 100, memory_growth_kb: 0, rss_kb: 1, failed: false)
       @recorder.tick
-      @recorder.track(class_name: "ReportJob", cpu_ms: 100, wall_ms: 100, memory_growth_kb: 0, rss_kb: 1, failed: false)
+      @recorder.track(class_name: "ReportJob", arguments_fingerprint: "abc", cpu_ms: 100, wall_ms: 100, memory_growth_kb: 0, rss_kb: 1, failed: false)
       @recorder.tick
 
-      assert_equal 1, JobUsage.count
-      assert_equal 2, JobUsage.sole.executions
+      assert_equal 2, JobUsage.totals.sole.executions
     end
 
     test "the subscriber measures one job execution" do
@@ -70,7 +69,7 @@ module SolidQueuePanel
       subscriber.finish("perform.active_job", "1", job: job)
       @recorder.tick
 
-      usage = JobUsage.sole
+      usage = JobUsage.totals.sole
 
       assert_equal "ReportJob", usage.class_name
       assert_equal 1, usage.executions
@@ -85,7 +84,31 @@ module SolidQueuePanel
       subscriber.finish("perform.active_job", "1", job: job, exception: [ "RuntimeError", "boom" ])
       @recorder.tick
 
-      assert_equal 1, JobUsage.sole.failures
+      assert_equal 1, JobUsage.totals.sole.failures
+    end
+
+    test "each set of arguments gets its own row, on top of the total of the class" do
+      @recorder.track(class_name: "SyncJob", arguments_fingerprint: "small", cpu_ms: 100, wall_ms: 1_000, memory_growth_kb: 0, rss_kb: 1, failed: false)
+      @recorder.track(class_name: "SyncJob", arguments_fingerprint: "big", cpu_ms: 900, wall_ms: 60_000, memory_growth_kb: 0, rss_kb: 1, failed: false)
+      @recorder.tick
+
+      assert_equal 2, JobUsage.totals.sole.executions
+      assert_equal 61_000, JobUsage.totals.sole.wall_ms
+      assert_equal %w[big small], JobUsage.by_arguments.order(:arguments_fingerprint).pluck(:arguments_fingerprint)
+      assert_equal 60_000, JobUsage.find_by(arguments_fingerprint: "big").wall_ms
+    end
+
+    test "only the most frequent sets of arguments are remembered" do
+      (Recorder::MAX_ARGUMENT_SETS + 5).times do |index|
+        (index + 1).times do
+          @recorder.track(class_name: "SyncJob", arguments_fingerprint: "args-#{index}", cpu_ms: 1, wall_ms: 1, memory_growth_kb: 0, rss_kb: 1, failed: false)
+        end
+      end
+      @recorder.tick
+
+      assert_equal Recorder::MAX_ARGUMENT_SETS, JobUsage.by_arguments.count
+      assert_includes JobUsage.by_arguments.pluck(:arguments_fingerprint), "args-#{Recorder::MAX_ARGUMENT_SETS + 4}"
+      assert_not_includes JobUsage.by_arguments.pluck(:arguments_fingerprint), "args-0"
     end
 
     test "old readings are pruned" do

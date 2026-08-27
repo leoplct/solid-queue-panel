@@ -9,7 +9,8 @@ module SolidQueuePanel
   # what the number says is how many jobs of that queue *could* be running at
   # this moment, not how many are reserved for it.
   class QueueCapacity
-    Row = Struct.new(:name, :capacity, :in_progress, :pending, :retries, :scheduled, :dead, :last_enqueued_at, :work_seconds, :paused, keyword_init: true) do
+    Row = Struct.new(:name, :capacity, :in_progress, :pending, :retries, :scheduled, :dead, :last_enqueued_at,
+                     :work_seconds, :unknown_jobs, :paused, keyword_init: true) do
       def paused?
         paused
       end
@@ -27,17 +28,30 @@ module SolidQueuePanel
       end
 
       # Seconds before the queue is empty, if nothing else is enqueued: the work
-      # waiting, spread over the threads that can pick it up.
+      # waiting, spread over the threads that can pick it up. Nil when none of
+      # the jobs waiting has ever been seen before.
       def eta_seconds
-        return if idle? || !workable?
+        return if idle? || !workable? || work_seconds.zero?
 
         work_seconds / capacity
+      end
+
+      # Some of the jobs waiting have no history, so the estimate is a floor
+      # rather than an answer.
+      def partial_eta?
+        unknown_jobs.positive? && eta_seconds.present?
+      end
+
+      def unknown_eta?
+        !idle? && workable? && eta_seconds.nil?
       end
 
       def workable?
         capacity.positive? && !paused?
       end
     end
+
+    ZERO_WORK = { seconds: 0.0, unknown: 0 }.freeze
 
     def initialize(queues: Queues.new, durations: JobDurations.new)
       @queues = queues
@@ -60,8 +74,8 @@ module SolidQueuePanel
       rows.filter_map(&:eta_seconds).max
     end
 
-    def durations_source
-      durations.source
+    def durations_basis
+      durations.basis
     end
 
     private
@@ -77,7 +91,8 @@ module SolidQueuePanel
           scheduled: queue.scheduled,
           dead: queue.failed,
           last_enqueued_at: queue.newest_enqueued_at,
-          work_seconds: work_seconds_for(queue.name),
+          work_seconds: work.fetch(queue.name, ZERO_WORK)[:seconds],
+          unknown_jobs: work.fetch(queue.name, ZERO_WORK)[:unknown],
           paused: queue.paused?
         )
       end
@@ -104,8 +119,18 @@ module SolidQueuePanel
         end
       end
 
-      def work_seconds_for(queue_name)
-        pending_by_class.fetch(queue_name, {}).sum { |class_name, count| durations.average_seconds(class_name) * count }
+      # Work waiting in each queue, in seconds, and how many of the jobs there
+      # have never been seen before and could not be estimated.
+      def work
+        @work ||= pending_by_class.transform_values do |counts|
+          counts.each_with_object({ seconds: 0.0, unknown: 0 }) do |(class_name, count), totals|
+            if (seconds = durations.average_seconds(class_name))
+              totals[:seconds] += seconds * count
+            else
+              totals[:unknown] += count
+            end
+          end
+        end
       end
 
       # Jobs waiting or running, by queue and class, so the estimate uses the

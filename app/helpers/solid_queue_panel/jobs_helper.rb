@@ -81,8 +81,67 @@ module SolidQueuePanel
       Array(failed_execution&.backtrace)
     end
 
+    # Estimates are read once per request: every running job asks the same
+    # object what jobs like it usually take.
+    def job_durations
+      @job_durations ||= JobDurations.new
+    end
+
+    # The progress of a job a worker is running: how long it has been going,
+    # against how long jobs like it take. Without an estimate there is no bar,
+    # because a bar would be a guess.
+    def running_job_progress(execution)
+      elapsed = Time.current - execution.created_at
+      estimate = execution.job && job_durations.for_job(execution.job)
+
+      return unknown_progress(elapsed) if estimate.nil? || estimate.seconds.to_f <= 0
+
+      progress_bar(
+        ratio: elapsed / estimate.seconds,
+        label: duration_in_words(elapsed),
+        tooltip: progress_tooltip(execution, elapsed, estimate)
+      ) + progress_percentage(elapsed, estimate)
+    end
+
+    def progress_percentage(elapsed, estimate)
+      share = (elapsed / estimate.seconds * 100).round
+
+      tag.span("#{[ share, 999 ].min}%", class: "ml-2 text-xs tabular-nums #{share > 100 ? "text-rose-600 dark:text-rose-400" : "text-slate-500"}")
+    end
+
+    def progress_tooltip(execution, elapsed, estimate)
+      finishes_at = execution.created_at + estimate.seconds
+
+      [
+        if elapsed > estimate.seconds
+          "Expected to finish around #{absolute_time(finishes_at)}, so it is taking longer than usual"
+        else
+          "Expected to finish around #{absolute_time(finishes_at)}"
+        end,
+        estimate_description(estimate)
+      ].join(" · ")
+    end
+
+    # Says where the estimate comes from, because "4 minutes" means something
+    # different when it is the average of 300 identical runs and when it is the
+    # average of the whole class.
+    def estimate_description(estimate)
+      subject = estimate.by_arguments? ? "runs with the same arguments" : "runs of this job class"
+      basis = estimate.measured? ? "measured execution time" : "time from enqueue to completion"
+
+      "estimated from #{number_with_delimiter(estimate.runs)} #{subject} in the last 24 hours (#{basis})"
+    end
+
     def queue_link(queue_name, **options)
       link_to queue_name, queue_path(name: queue_name), **options
     end
+
+    private
+      def unknown_progress(elapsed)
+        safe_join([
+          tag.span(duration_in_words(elapsed), class: "tabular-nums"),
+          tag.span("no estimate yet", class: "ml-2 text-xs text-slate-400", title: "No job like this one has finished in the last 24 hours")
+        ])
+      end
   end
 end

@@ -16,7 +16,7 @@
             <% if show_process %>
               <th scope="col" class="<%= table_header_classes %>">Worker</th>
             <% end %>
-            <th scope="col" class="<%= table_header_classes %>">Running for</th>
+            <th scope="col" class="<%= table_header_classes %>" title="Time running against how long jobs like this one take">Progress</th>
           </tr>
         </thead>
 
@@ -46,7 +46,9 @@
                   <% end %>
                 </td>
               <% end %>
-              <td class="<%= table_cell_classes %> tabular-nums"><%= duration_in_words(Time.current - execution.created_at) %></td>
+              <td class="px-4 py-2.5 text-sm">
+                <div class="flex items-center"><%= running_job_progress execution %></div>
+              </td>
             </tr>
           <% end %>
         </tbody>

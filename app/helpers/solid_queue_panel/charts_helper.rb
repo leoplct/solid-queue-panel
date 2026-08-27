@@ -112,6 +112,31 @@ module SolidQueuePanel
       )
     end
 
+    # How far along a running job is: the time it has been running written
+    # inside the bar, the share of its estimated duration as the fill, and the
+    # time it is expected to finish in the tooltip.
+    def progress_bar(ratio:, label:, tooltip: nil, width: 150, height: 22)
+      ratio = ratio.to_f.clamp(0.0, 1.0)
+
+      color = case ratio
+      when 0...0.8 then "fill-emerald-500"
+      when 0.8...1.0 then "fill-amber-500"
+      else "fill-rose-500"
+      end
+
+      tag.svg(
+        safe_join([
+          (tag.title(tooltip) if tooltip.present?),
+          tag.rect(x: 0, y: 0, width: width, height: height, rx: 5, class: "fill-slate-200 dark:fill-slate-700"),
+          tag.rect(x: 0, y: 0, width: (width * ratio).round(2), height: height, rx: 5, class: color),
+          tag.text(label, x: width / 2, y: height / 2 + 4, "text-anchor": "middle",
+                   class: "fill-slate-900 text-[11px] font-medium dark:fill-slate-900")
+        ].compact),
+        viewBox: "0 0 #{width} #{height}", width: width, height: height, role: "img",
+        class: "cursor-help", "aria-label": tooltip.presence || label
+      )
+    end
+
     # A capacity gauge: busy threads against the pool size, RabbitMQ's
     # resource bars in miniature.
     def meter_bar(value, max, width: 90, height: 6)

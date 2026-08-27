@@ -18,7 +18,7 @@
         <h2 class="text-sm font-semibold">Capacity</h2>
         <p class="mt-0.5 text-xs text-slate-500">
           Threads polling each queue, what they are running right now, and how long the rest will take.
-          <% if @capacity.durations_source == :estimated %>
+          <% if @capacity.durations_basis == :estimated %>
             Durations are estimated from enqueue to completion, so they read long:
             <%= link_to "install the resource metrics", resources_path, class: "underline underline-offset-2" %>
             to measure how long jobs actually run.
@@ -78,9 +78,11 @@
                     <span class="text-amber-600 dark:text-amber-400" title="A paused queue is not being worked on">paused</span>
                   <% elsif row.capacity.zero? %>
                     <span class="text-rose-600 dark:text-rose-400" title="No worker is polling this queue">never</span>
+                  <% elsif row.unknown_eta? %>
+                    <span class="text-slate-400" title="No job waiting in this queue has finished before, so there is nothing to estimate from">unknown</span>
                   <% else %>
-                    <span title="<%= pluralize row.backlog, "job" %> to run, spread over <%= pluralize row.capacity, "thread" %>">
-                      <%= duration_in_words row.eta_seconds %>
+                    <span title="<%= pluralize row.backlog, "job" %> to run, spread over <%= pluralize row.capacity, "thread" %><%= ", #{row.unknown_jobs} of which have no history" if row.partial_eta? %>">
+                      <%= "at least " if row.partial_eta? %><%= duration_in_words row.eta_seconds %>
                     </span>
                   <% end %>
                 </td>
