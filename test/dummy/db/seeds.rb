@@ -55,7 +55,7 @@ SolidQueue::Process.create!(kind: "Scheduler", name: "scheduler-1", pid: 1011, h
                             supervisor: supervisor, last_heartbeat_at: Time.current,
                             metadata: { "polling_interval" => 5, "recurring_schedule" => [ "cleanup" ] })
 
-45.times { build_job(enqueued_at: rand(1..45).minutes.ago) }
+45.times { build_job(enqueued_at: rand(1..180).minutes.ago) }
 
 10.times { build_job(scheduled_at: rand(1..600).minutes.from_now, enqueued_at: rand(1..300).minutes.ago) }
 

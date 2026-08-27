@@ -37,6 +37,7 @@
           <thead class="bg-slate-50 dark:bg-slate-900/60">
             <tr>
               <th scope="col" class="<%= table_header_classes %>">Queue</th>
+              <th scope="col" class="<%= table_header_classes %>" title="Jobs finished and, dashed, jobs arriving, hour by hour">Last 24h</th>
               <th scope="col" class="<%= table_header_classes %> text-right">Capacity</th>
               <th scope="col" class="<%= table_header_classes %>">In progress</th>
               <th scope="col" class="<%= table_header_classes %> text-right">Pending</th>
@@ -56,6 +57,10 @@
                   <% if row.paused? %>
                     <%= badge "paused", color: "amber", icon_name: "pause" %>
                   <% end %>
+                </td>
+
+                <td class="px-4 py-2.5">
+                  <%= queue_sparkline @capacity.trend_for(row.name), tooltip: @capacity.trend_summary(row.name) %>
                 </td>
 
                 <td class="<%= table_cell_classes %> text-right tabular-nums"

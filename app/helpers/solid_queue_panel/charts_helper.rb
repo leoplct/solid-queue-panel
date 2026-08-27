@@ -112,6 +112,31 @@ module SolidQueuePanel
       )
     end
 
+    # The last day of a queue in the space of a word: jobs finished as a filled
+    # area, jobs arriving as a line over it, so a queue that is being fed faster
+    # than it is drained shows the line pulling away from the area.
+    def queue_sparkline(points, tooltip: nil, width: 120, height: 30)
+      return tag.span("—", class: "text-slate-300 dark:text-slate-600") if points.size < 2
+
+      ceiling = [ points.map(&:peak).max, 1 ].max
+      step = width / (points.size - 1).to_f
+
+      tag.svg(
+        safe_join([
+          (tag.title(tooltip) if tooltip.present?),
+          tag.polygon(points: area_coordinates(points, :finished, ceiling, step, height), class: "fill-emerald-500/25"),
+          tag.polyline(points: sparkline_coordinates(points, :finished, ceiling, step, height), class: "stroke-emerald-500 fill-none", "stroke-width": 1.5),
+          tag.polyline(points: sparkline_coordinates(points, :enqueued, ceiling, step, height), class: "stroke-indigo-500 fill-none", "stroke-width": 1.5, "stroke-dasharray": "3 2")
+        ].compact),
+        viewBox: "0 0 #{width} #{height}",
+        width: width,
+        height: height,
+        class: "cursor-help",
+        role: "img",
+        "aria-label": tooltip.presence || "Trend of the last day"
+      )
+    end
+
     # How far along a running job is: the time it has been running written
     # inside the bar, the share of its estimated duration as the fill, and the
     # time it is expected to finish in the tooltip.
@@ -159,6 +184,20 @@ module SolidQueuePanel
     end
 
     private
+      def sparkline_coordinates(points, series, ceiling, step, height)
+        points.each_with_index.map do |point, index|
+          value = point.public_send(series)
+
+          "#{(index * step).round(2)},#{(height - (value / ceiling.to_f * (height - 2))).round(2)}"
+        end.join(" ")
+      end
+
+      def area_coordinates(points, series, ceiling, step, height)
+        line = sparkline_coordinates(points, series, ceiling, step, height)
+
+        "0,#{height} #{line} #{((points.size - 1) * step).round(2)},#{height}"
+      end
+
       def chart_placeholder
         tag.div("Nothing has run in this period yet", class: "flex h-40 items-center justify-center text-sm text-slate-500")
       end

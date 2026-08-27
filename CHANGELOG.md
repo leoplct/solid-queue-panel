@@ -13,6 +13,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Capacity table on the dashboard: threads polling each queue, what they are
   running, what is pending, when the queue was last added to, an ETA for the
   backlog, and the retried, scheduled and dead jobs of each queue. Underneath,
+  a sparkline of the last 24 hours of each queue, and underneath,
   every job being processed at this moment, with a progress bar of how long it
   has been running against how long jobs like it take, and the expected finish
   time on hover.

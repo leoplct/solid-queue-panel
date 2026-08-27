@@ -165,6 +165,9 @@ screen.
 The table on the dashboard answers the question you actually have when a queue starts growing: is
 there anyone working on it, and when will it be done?
 
+- **Last 24h** is the shape of the day: jobs finished as a filled area, jobs arriving as a dashed
+  line over it, hour by hour. A line pulling away from the area is a queue being fed faster than it
+  is drained, long before the pending count makes it obvious.
 - **Capacity** is the number of worker threads polling the queue, wildcards resolved the way Solid
   Queue resolves them. A worker polling several queues lends its threads to all of them, so
   capacities overlap: the number says how many jobs of that queue *could* be running right now.

@@ -26,6 +26,18 @@ module SolidQueuePanel
       end
     end
 
+    # The same, split by another column: returns a Hash of [group, bucket index]
+    # to number of records, which is one query for every queue at once.
+    def count_by(relation, column, group)
+      expression = sql_expression(relation.model, column)
+
+      if expression
+        relation.group(group).group(Arel.sql(expression)).count.transform_keys { |key, index| [ key, index.to_i ] }
+      else
+        count_by_in_ruby(relation, column, group)
+      end
+    end
+
     def index_for(time)
       time.to_i / size
     end
@@ -44,6 +56,12 @@ module SolidQueuePanel
           when /mysql|trilogy/ then "FLOOR(UNIX_TIMESTAMP(#{quoted}) / #{size})"
           when /sqlite/ then "CAST(STRFTIME('%s', #{quoted}) / #{size} AS INTEGER)"
           end
+        end
+      end
+
+      def count_by_in_ruby(relation, column, group)
+        relation.limit(RUBY_FALLBACK_LIMIT).pluck(group, column).each_with_object(Hash.new(0)) do |(key, time), counts|
+          counts[[ key, index_for(time) ]] += 1 if time
         end
       end
 

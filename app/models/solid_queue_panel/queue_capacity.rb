@@ -53,9 +53,24 @@ module SolidQueuePanel
 
     ZERO_WORK = { seconds: 0.0, unknown: 0 }.freeze
 
-    def initialize(queues: Queues.new, durations: JobDurations.new)
+    def initialize(queues: Queues.new, durations: JobDurations.new, trends: QueueTrends.new)
       @queues = queues
       @durations = durations
+      @trends = trends
+    end
+
+    # The last day of a queue, hour by hour, for the sparkline next to its name.
+    def trend_for(queue_name)
+      trends.for(queue_name)
+    end
+
+    def trend_summary(queue_name)
+      "#{ActiveSupport::NumberHelper.number_to_delimited(trends.enqueued(queue_name))} enqueued and " \
+        "#{ActiveSupport::NumberHelper.number_to_delimited(trends.finished(queue_name))} finished in the last #{trends.period.label}"
+    end
+
+    def trend?(queue_name)
+      trends.any?(queue_name)
     end
 
     def rows
@@ -79,7 +94,7 @@ module SolidQueuePanel
     end
 
     private
-      attr_reader :queues, :durations
+      attr_reader :queues, :durations, :trends
 
       def build_row(queue)
         Row.new(

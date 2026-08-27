@@ -21,6 +21,7 @@ class PagesTest < SolidQueuePanel::IntegrationTestCase
     assert_response :success
     assert_select "h2", text: /Capacity/
     assert_select "a", text: "reports"
+    assert_select "svg[aria-label*=?]", "enqueued", minimum: 2, message: "each queue gets a sparkline"
   end
 
   test "dashboard lists the jobs being processed right now" do
