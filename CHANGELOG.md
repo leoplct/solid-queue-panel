@@ -41,7 +41,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Recurring tasks with their schedule, next run and latest runs.
 - Per job class metrics over a configurable period.
 - Settings page with the Solid Queue configuration, the configured processes and
-  the contents of `config/queue.yml` and `config/recurring.yml`.
+  the contents of `config/queue.yml` and `config/recurring.yml`, and a Copy
+  button that puts a plain text report of the whole installation — settings,
+  processes, queues, machines, config files, never credentials — on the
+  clipboard, ready to paste into an LLM or an issue.
 - Sign in form with credentials that stay saved in the browser for two weeks,
   HTTP basic authentication with the same credentials, a custom authentication
   block, and read-only mode.

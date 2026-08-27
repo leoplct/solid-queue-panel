@@ -196,19 +196,33 @@ class PagesTest < SolidQueuePanel::IntegrationTestCase
     assert_match "config/queue.yml", response.body
   end
 
+  test "the settings page can be copied as plain text" do
+    get panel.settings_path
+
+    assert_response :success
+    assert_select "button[data-sqp-copy=?]", panel.report_settings_path
+
+    get panel.report_settings_path
+
+    assert_response :success
+    assert_equal "text/plain", response.media_type
+    assert_match "# Solid Queue report", response.body
+    assert_match "## Queues", response.body
+  end
+
   test "assets are served from the gem" do
-    get panel.panel_asset_path(version: SolidQueuePanel::VERSION, file: "solid_queue_panel.css")
+    get panel.panel_asset_path(digest: SolidQueuePanel::AssetsController.digest("solid_queue_panel.css"), file: "solid_queue_panel.css")
 
     assert_response :success
     assert_equal "text/css", response.media_type
 
-    get panel.panel_asset_path(version: SolidQueuePanel::VERSION, file: "solid_queue_panel.js")
+    get panel.panel_asset_path(digest: SolidQueuePanel::AssetsController.digest("solid_queue_panel.js"), file: "solid_queue_panel.js")
 
     assert_response :success
   end
 
   test "unknown assets are not found" do
-    get panel.panel_asset_path(version: SolidQueuePanel::VERSION, file: "secrets.txt")
+    get panel.panel_asset_path(digest: "whatever", file: "secrets.txt")
 
     assert_response :not_found
   end

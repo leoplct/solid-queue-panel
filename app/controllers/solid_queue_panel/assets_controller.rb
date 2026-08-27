@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "digest"
+
 module SolidQueuePanel
   # Serves the dashboard's own CSS and JavaScript straight from the gem, so the
   # host application does not have to know about them: nothing to precompile, no
@@ -19,14 +21,33 @@ module SolidQueuePanel
       "solid_queue_panel.js" => { path: "app/assets/javascripts/solid_queue_panel/application.js", type: "text/javascript" }
     }.freeze
 
-    def show
-      asset = ASSETS[params[:file]]
-      return head :not_found unless asset
+    class << self
+      # Assets are addressed by the digest of their contents, so a build can be
+      # cached forever and still never go stale: upgrading the gem, or patching
+      # it in place, changes the URL on its own. The digest is only recomputed
+      # when the file changes.
+      def digest(file)
+        path = path_for(file)
+        key = [ file, path.mtime.to_i ]
 
-      # Assets are addressed by gem version, so a build can be cached forever
-      # and an upgrade busts the cache on its own.
+        digests[key] ||= Digest::MD5.file(path).hexdigest[0, 12]
+      end
+
+      def path_for(file)
+        Engine.root.join(ASSETS.fetch(file)[:path])
+      end
+
+      private
+        def digests
+          @digests ||= {}
+        end
+    end
+
+    def show
+      return head :not_found unless ASSETS.key?(params[:file])
+
       expires_in 1.year, public: true
-      send_file Engine.root.join(asset[:path]), type: asset[:type], disposition: "inline"
+      send_file self.class.path_for(params[:file]), type: ASSETS[params[:file]][:type], disposition: "inline"
     end
   end
 end

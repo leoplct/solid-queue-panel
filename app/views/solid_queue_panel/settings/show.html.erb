@@ -1,6 +1,20 @@
 <% content_for :title, "Settings" %>
 
 <div class="space-y-4">
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <div>
+      <h1 class="text-xl font-semibold">Settings</h1>
+      <p class="mt-1 text-sm text-slate-500">
+        How Solid Queue is configured here, what it would start, and where its data lives.
+      </p>
+    </div>
+
+    <%= button_tag type: "button", data: { sqp_copy: report_settings_path }, class: button_classes,
+                   title: "Copy this installation as plain text: configuration, processes, queues, resources and the config files, ready to paste into an LLM or an issue" do %>
+      <%= icon "document-duplicate", css_class: "size-4" %>
+      <span data-sqp-copy-label>Copy</span>
+    <% end %>
+  </div>
   <div class="grid gap-4 lg:grid-cols-2">
     <%= render "solid_queue_panel/settings/settings_card", title: "Solid Queue", settings: @settings.solid_queue_settings,
                description: "Set in config/initializers or config/environments" %>

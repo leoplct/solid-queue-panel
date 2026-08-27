@@ -134,7 +134,7 @@ config.read_only = true   # hides and refuses retry, discard, pause, resume, cle
 | **Recurring** | Recurring tasks with their schedule, target, queue, last run and next run, plus the latest runs of each task. |
 | **Metrics** | A throughput chart of jobs enqueued, finished and failed, with arrival and completion rates, and a table per job class: enqueued, finished, failed, failure rate, jobs in progress, average and total time. |
 | **Resources** | [How much memory and CPU](#resource-metrics) every machine and every Solid Queue process is using, over time, what each job class costs, and concrete advice on how many processes and threads this machine can take. |
-| **Settings** | The whole Solid Queue configuration with an explanation of every setting, the processes Solid Queue would start, the contents of `config/queue.yml` and `config/recurring.yml`, the database the queue lives in, and the versions in use. |
+| **Settings** | The whole Solid Queue configuration with an explanation of every setting, the processes Solid Queue would start, the contents of `config/queue.yml` and `config/recurring.yml`, the database the queue lives in, and the versions in use — plus a **Copy** button that puts [all of it, as text](#copying-the-whole-setup), on your clipboard. |
 
 Every page refreshes itself while you watch it, in light or dark theme, and works down to a phone
 screen.
@@ -224,6 +224,32 @@ Discarding goes through Solid Queue, so any concurrency lock the discarded jobs 
 
 The scan compares payloads in Ruby, so it stops at the 100,000 oldest queued jobs and tells you how
 many it looked at. Run it again to work through a longer queue.
+
+### Copying the whole setup
+
+The **Copy** button on the settings page puts a plain text report of this installation on your
+clipboard: versions, every Solid Queue setting, the processes configured and the processes actually
+running, the state of every queue, what each machine is using, the heaviest job classes, and the
+configuration files as they are written. It is meant to be pasted somewhere that is not the panel —
+into an LLM helping you tune the queue, into a bug report, into a message to whoever is on call:
+
+```
+## Queues
+
+background  capacity=15  in_progress=2  pending=14  blocked=6  scheduled=2  retries=2  dead=1
+            finished_24h=72  last_added=63s ago  eta=87s
+
+## Machine jobs-01
+
+cores=4  memory=8192MB  used=64%  load=1.99  load_per_core=50%
+solid_queue_memory=945MB  per_worker=234MB  workers=3  threads_per_worker=5
+advice:
+  - Each worker holds 234 MB, and the machine is using 64% of its 8,192 MB. There is room for about
+    10 worker processes of that size.
+```
+
+It never includes credentials, and it is built when you press the button rather than every time the
+page refreshes.
 
 ## Resource metrics
 

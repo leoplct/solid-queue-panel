@@ -143,6 +143,76 @@
     });
   }
 
+  // Copies a page's plain text version to the clipboard. The text is fetched
+  // when the button is clicked, so building it costs nothing until someone
+  // wants it.
+  function setUpCopyButtons() {
+    document.addEventListener("click", function (event) {
+      var button = event.target.closest("[data-sqp-copy]");
+      if (!button) return;
+
+      event.preventDefault();
+
+      window
+        .fetch(button.getAttribute("data-sqp-copy"), { credentials: "same-origin" })
+        .then(function (response) {
+          return response.ok ? response.text() : Promise.reject(response.status);
+        })
+        .then(copyToClipboard)
+        .then(function () {
+          flashLabel(button, "Copied");
+        })
+        .catch(function () {
+          flashLabel(button, "Copy failed");
+        });
+    });
+  }
+
+  // The asynchronous clipboard is only available over HTTPS and on localhost,
+  // and panels are often mounted on plain HTTP inside a private network. It can
+  // also be refused when the browser does not consider the click recent enough,
+  // so the older way to copy is both the fallback and the second chance.
+  function copyToClipboard(text) {
+    if (window.navigator.clipboard && window.isSecureContext) {
+      return window.navigator.clipboard.writeText(text).catch(function () {
+        return copyThroughSelection(text);
+      });
+    }
+
+    return copyThroughSelection(text);
+  }
+
+  function copyThroughSelection(text) {
+    return new Promise(function (resolve, reject) {
+      var area = document.createElement("textarea");
+
+      area.value = text;
+      area.setAttribute("readonly", "");
+      area.style.position = "fixed";
+      area.style.top = "-1000px";
+      area.style.opacity = "0";
+
+      document.body.appendChild(area);
+      area.select();
+
+      var copied = document.execCommand("copy");
+      document.body.removeChild(area);
+
+      copied ? resolve() : reject(new Error("copy refused"));
+    });
+  }
+
+  function flashLabel(button, message) {
+    var label = button.querySelector("[data-sqp-copy-label]") || button;
+
+    if (!label.dataset.originalLabel) label.dataset.originalLabel = label.textContent;
+    label.textContent = message;
+
+    window.setTimeout(function () {
+      label.textContent = label.dataset.originalLabel;
+    }, 2000);
+  }
+
   // Confirmations without depending on Turbo or Rails UJS being loaded.
   function setUpConfirmations() {
     document.addEventListener("submit", function (event) {
@@ -158,6 +228,7 @@
     setUpPolling();
     setUpBulkSelection();
     setUpConfirmations();
+    setUpCopyButtons();
   }
 
   document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", boot) : boot();

@@ -30,11 +30,15 @@ module SolidQueuePanel
     end
 
     def panel_stylesheet_url
-      panel_asset_path(version: SolidQueuePanel::VERSION, file: "solid_queue_panel.css")
+      panel_asset_url_for("solid_queue_panel.css")
     end
 
     def panel_javascript_url
-      panel_asset_path(version: SolidQueuePanel::VERSION, file: "solid_queue_panel.js")
+      panel_asset_url_for("solid_queue_panel.js")
+    end
+
+    def panel_asset_url_for(file)
+      panel_asset_path(digest: AssetsController.digest(file), file: file)
     end
 
     # Number formatting is used on every page and every stat: keep it short.

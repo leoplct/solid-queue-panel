@@ -34,13 +34,15 @@ SolidQueuePanel::Engine.routes.draw do
 
   resource :metrics, only: :show
   resource :resources, only: :show
-  resource :settings, only: :show
+  resource :settings, only: :show do
+    get :report
+  end
   resource :theme, only: :update
 
   get "login", to: "sessions#new", as: :login
   post "login", to: "sessions#create"
   delete "logout", to: "sessions#destroy", as: :logout
 
-  get "assets/:version/:file", to: "assets#show", as: :panel_asset, format: false,
-      constraints: { version: /[\w.-]+/, file: /[\w.-]+/ }
+  get "assets/:digest/:file", to: "assets#show", as: :panel_asset, format: false,
+      constraints: { digest: /[\w.-]+/, file: /[\w.-]+/ }
 end
