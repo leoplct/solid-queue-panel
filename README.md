@@ -204,7 +204,7 @@ history says it should.
 
 ### Removing duplicates
 
-The queued tab has a **Remove duplicates** button. It opens a page that counts the copies first and
+The queued tab has a **Duplicates** button. It opens a page that counts the copies first and
 lists what they are copies of, so discarding them is a decision rather than a surprise — and so the
 count, which walks the queue, only runs when you ask for it rather than on every page you look at.
 Confirming discards every copy but the first of each group.

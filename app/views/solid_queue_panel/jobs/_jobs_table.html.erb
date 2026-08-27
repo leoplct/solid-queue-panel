@@ -9,8 +9,8 @@
     <div class="flex flex-wrap items-center gap-2">
       <% if query.status == "queued" && !read_only? %>
         <%= link_to duplicates_jobs_path(queue_name: query.queue_name), class: button_classes,
-                    title: "Count the queued jobs that are an exact copy of an earlier one, then decide" do %>
-          <%= icon "document-duplicate", css_class: "size-4" %> Remove duplicates
+                    title: "Count the queued jobs that are an exact copy of an earlier one, then decide what to do with them" do %>
+          <%= icon "document-duplicate", css_class: "size-4" %> Duplicates
         <% end %>
       <% end %>
 
