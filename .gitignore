@@ -12,3 +12,7 @@ node_modules/
 /test/dummy/config/master.key
 /test/dummy/config/credentials.yml.enc
 /test/dummy/db/schema.rb
+
+# Editor directories
+/.idea/
+/.vscode/

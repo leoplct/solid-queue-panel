@@ -35,7 +35,7 @@ generates the credentials you will sign in with:
 Solid Queue Panel is mounted at /jobs
 
   Username: admin
-  Password: iRFMlvTckYpnJm9YuR9v8RyK
+  Password: 2xK9pQmR7vTnB4wYhZ3sLdFa
 
 The password is stored in your encrypted credentials. Write it down: this is the
 only time it is printed.
@@ -44,7 +44,7 @@ only time it is printed.
 Start your app, open `/jobs`, and sign in with those credentials.
 
 ```bash
-bin/rails generate solid_queue_panel:install --at /admin/jobs --username leonardo
+bin/rails generate solid_queue_panel:install --at /admin/jobs --username YOURNAME
 ```
 
 <p align="center">
@@ -65,7 +65,7 @@ The same credentials are accepted as HTTP basic authentication, which is handy f
 uptime check:
 
 ```bash
-curl -u admin:iRFMlvTckYpnJm9YuR9v8RyK https://example.com/jobs
+curl -u admin:2xK9pQmR7vTnB4wYhZ3sLdFa https://example.com/jobs
 ```
 
 ### Where the password lives
