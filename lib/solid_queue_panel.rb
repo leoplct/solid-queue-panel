@@ -19,9 +19,11 @@ module SolidQueuePanel
     end
     alias config configuration
 
-    # True once the resource metrics tables exist. While they are missing the
-    # check is repeated at most once a minute, so installing them does not need
-    # a restart of the application.
+    # True once the resource metrics tables exist. Both are checked: they come
+    # from a single migration, but a half applied one leaves the panel querying
+    # a table that is not there. While they are missing the check is repeated at
+    # most once a minute, so installing them does not need a restart of the
+    # application.
     def resource_metrics?
       now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
@@ -45,7 +47,7 @@ module SolidQueuePanel
 
     private
       def table_installed?
-        ProcessSample.table_exists?
+        ProcessSample.table_exists? && JobUsage.table_exists?
       rescue StandardError
         false
       end

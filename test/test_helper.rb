@@ -27,6 +27,8 @@ module SolidQueuePanel
   # Runs a block as if the resource metrics tables had never been installed,
   # which is how the panel starts out in every application.
   module WithoutResourceMetrics
+    METRICS_MODELS = [ JobUsage, ProcessSample ].freeze
+
     def without_resource_metrics
       SolidQueuePanel.singleton_class.alias_method :recorded_resource_metrics?, :resource_metrics?
       SolidQueuePanel.define_singleton_method(:resource_metrics?) { false }
@@ -36,6 +38,38 @@ module SolidQueuePanel
       SolidQueuePanel.singleton_class.alias_method :resource_metrics?, :recorded_resource_metrics?
       SolidQueuePanel.singleton_class.remove_method :recorded_resource_metrics?
     end
+
+    # Stubbing the predicate is not the same as not having the tables: the
+    # models still know their columns, so code that builds a scope before it
+    # checks the predicate keeps working in the tests and blows up in an
+    # application. This points the models at tables that really are not there.
+    def without_resource_metrics_tables
+      names = METRICS_MODELS.to_h { |model| [ model, model.table_name ] }
+
+      names.each_key do |model|
+        model.table_name = "#{names[model]}_not_installed"
+        model.reset_column_information
+      end
+
+      # The installed check remembers its answer for a minute, and the answer
+      # just changed.
+      reset_resource_metrics_cache
+
+      yield
+    ensure
+      names.each do |model, name|
+        model.table_name = name
+        model.reset_column_information
+      end
+
+      reset_resource_metrics_cache
+    end
+
+    private
+      def reset_resource_metrics_cache
+        SolidQueuePanel.instance_variable_set(:@resource_metrics, nil)
+        SolidQueuePanel.instance_variable_set(:@resource_metrics_checked_at, nil)
+      end
   end
 
   class TestCase < ActiveSupport::TestCase

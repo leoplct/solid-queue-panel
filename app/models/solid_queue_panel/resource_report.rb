@@ -158,6 +158,8 @@ module SolidQueuePanel
     end
 
     def heaviest_jobs(limit: HEAVIEST_JOBS)
+      return [] unless installed?
+
       @heaviest_jobs ||= JobUsage.in_period(period)
         .group(:class_name)
         .pluck(

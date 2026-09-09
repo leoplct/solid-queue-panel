@@ -71,19 +71,24 @@ module SolidQueuePanel
 
       # Execution time per set of arguments, as measured inside the workers.
       def argument_estimates
-        @argument_estimates ||= usage_estimates(JobUsage.by_arguments, scope: :arguments) do |class_name, fingerprint|
+        @argument_estimates ||= usage_estimates(:by_arguments, scope: :arguments) do |class_name, fingerprint|
           [ class_name, fingerprint ]
         end
       end
 
       def measured_class_estimates
-        @measured_class_estimates ||= usage_estimates(JobUsage.totals, scope: :class) { |class_name, _| class_name }
+        @measured_class_estimates ||= usage_estimates(:totals, scope: :class) { |class_name, _| class_name }
       end
 
-      def usage_estimates(relation, scope:)
+      # The scope is named rather than passed, so that JobUsage is only asked
+      # for it once the tables are known to be there: building a scope loads the
+      # model's schema, which is the very thing that fails when the resource
+      # metrics were never installed.
+      def usage_estimates(usage_scope, scope:)
         return {} unless SolidQueuePanel.resource_metrics?
 
-        relation.where(bucket_at: WINDOW.ago..)
+        JobUsage.public_send(usage_scope)
+          .where(bucket_at: WINDOW.ago..)
           .group(:class_name, :arguments_fingerprint)
           .pluck(:class_name, :arguments_fingerprint, Arel.sql("SUM(wall_ms)"), Arel.sql("SUM(executions)"))
           .each_with_object({}) do |(class_name, fingerprint, wall_ms, executions), estimates|

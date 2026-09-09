@@ -13,6 +13,30 @@ class PagesTest < SolidQueuePanel::IntegrationTestCase
     @task = SolidQueue::RecurringTask.create!(key: "cleanup", schedule: "every hour", class_name: "CleanupJob", static: true)
   end
 
+  # The resource metrics tables are optional, so every page has to work without
+  # them. Reported from a PostgreSQL application where the dashboard raised
+  # PG::UndefinedTable on solid_queue_panel_job_usages.
+  test "every page works when the resource metrics tables were never installed" do
+    create_process(metadata: { "queues" => "*", "thread_pool_size" => 5 })
+
+    without_resource_metrics_tables do
+      [ panel.root_path, panel.jobs_path, panel.queues_path, panel.processes_path,
+        panel.metrics_path, panel.resources_path, panel.settings_path ].each do |path|
+        get path
+
+        assert_response :success, "#{path} should render without the resource metrics tables"
+      end
+    end
+  end
+
+  test "the settings report is built without the resource metrics tables" do
+    without_resource_metrics_tables do
+      get panel.report_settings_path
+
+      assert_response :success
+    end
+  end
+
   test "dashboard shows the capacity of every queue" do
     create_process(metadata: { "queues" => "*", "thread_pool_size" => 5 })
 

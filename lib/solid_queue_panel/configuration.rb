@@ -46,8 +46,26 @@ module SolidQueuePanel
     # How long samples and per job class usage are kept.
     attr_accessor :resource_retention
 
+    # Keys whose values are replaced with [FILTERED] wherever the panel shows an
+    # Active Job payload. Defaults to the application's own filter_parameters,
+    # so the panel hides what the application already hides from its logs.
+    # Set it to an empty array to show payloads exactly as they are stored.
+    attr_writer :filter_parameters
+
+    # Show no job arguments at all, anywhere. The strongest of the two, for
+    # panels watching queues whose payloads nobody should read.
+    attr_accessor :hide_job_arguments
+
+    # Where the audit trail of every action that changes something is written.
+    # Defaults to the application logger.
+    attr_writer :audit_logger
+
     # Custom authentication callable, instance_exec'd in the controller.
     attr_reader :authentication_block
+
+    # Names the person behind a request in the audit trail, instance_exec'd in
+    # the controller.
+    attr_reader :audit_actor_block
 
     DEFAULT_TIME_PERIODS = [ 1, 6, 24, 24 * 7 ].freeze
     private_constant :DEFAULT_TIME_PERIODS
@@ -66,6 +84,10 @@ module SolidQueuePanel
       @resource_sample_interval = 30.seconds
       @resource_retention = 3.days
       @authentication_block = nil
+      @filter_parameters = nil
+      @hide_job_arguments = false
+      @audit_logger = nil
+      @audit_actor_block = nil
     end
 
     # Runs an arbitrary authentication check before every request. The block is
@@ -74,6 +96,15 @@ module SolidQueuePanel
     #   config.authenticate_with { redirect_to("/login") unless current_user&.admin? }
     def authenticate_with(&block)
       @authentication_block = block
+    end
+
+    # Names whoever is behind a request, for the audit trail. Without it the
+    # panel can only record how the request was authenticated, which is the
+    # honest answer when everybody shares one password.
+    #
+    #   config.audit_actor { current_user&.email }
+    def audit_actor(&block)
+      @audit_actor_block = block
     end
 
     # True once both a username and a password are configured, which is what
@@ -95,6 +126,20 @@ module SolidQueuePanel
       Digest::SHA256.hexdigest("solid_queue_panel:#{username}:#{password}")
     end
 
+    # Nil means "whatever the application filters", which is almost always the
+    # right answer: a key worth hiding from the logs is worth hiding here too.
+    def filter_parameters
+      @filter_parameters.nil? ? application_filter_parameters : @filter_parameters
+    end
+
+    def hide_job_arguments?
+      !!hide_job_arguments
+    end
+
+    def audit_logger
+      @audit_logger || Rails.logger
+    end
+
     def record_resource_metrics?
       !!record_resource_metrics
     end
@@ -108,6 +153,12 @@ module SolidQueuePanel
     end
 
     private
+      def application_filter_parameters
+        Rails.application.config.filter_parameters
+      rescue StandardError
+        []
+      end
+
       def compare(given, expected)
         ActiveSupport::SecurityUtils.secure_compare(
           Digest::SHA256.hexdigest(given.to_s),
