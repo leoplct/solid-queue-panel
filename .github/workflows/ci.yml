@@ -45,3 +45,18 @@ jobs:
         run: |
           bundle exec rake tailwind:build
           git diff --exit-code app/assets/builds
+
+  audit:
+    name: Audit dependencies
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      - name: Check for known vulnerabilities
+        run: bundle exec bundle-audit check --update

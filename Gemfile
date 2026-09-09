@@ -8,6 +8,7 @@ gem "puma"
 gem "sqlite3"
 
 gem "rubocop-rails-omakase", require: false
+gem "bundler-audit", require: false
 gem "tailwindcss-ruby", "~> 4.0", require: false
 
 # json 3.0 dropped the positional options argument that Active Support 8.1 still

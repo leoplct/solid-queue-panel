@@ -19,11 +19,13 @@ module SolidQueuePanel
 
     def pause
       @queue.pause
+      audit :pause_queue, queue_name: @queue.name
       redirect_back_with notice: "Queue #{@queue.name} is paused: workers will skip it until it is resumed."
     end
 
     def resume
       @queue.resume
+      audit :resume_queue, queue_name: @queue.name
       redirect_back_with notice: "Queue #{@queue.name} was resumed."
     end
 
@@ -31,6 +33,7 @@ module SolidQueuePanel
     # keep running, Solid Queue does not allow interrupting them.
     def clear
       @queue.clear
+      audit :clear_queue, queue_name: @queue.name
       redirect_to queues_path, notice: "Queue #{@queue.name} was cleared."
     end
 

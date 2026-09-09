@@ -21,6 +21,10 @@ module Dummy
     config.secret_key_base = "solid_queue_panel_dummy_secret_key_base"
     config.active_job.queue_adapter = :solid_queue
     config.logger = ActiveSupport::Logger.new(File.expand_path("../log/dummy.log", __dir__))
+
+    # What config/initializers/filter_parameter_logging.rb sets in a generated
+    # application. The panel reuses it, so the dummy has to have it.
+    config.filter_parameters += %i[passw email secret token _key crypt salt certificate otp ssn cvv cvc]
     config.hosts.clear
   end
 end

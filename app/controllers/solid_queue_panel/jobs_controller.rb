@@ -19,6 +19,7 @@ module SolidQueuePanel
     # counters so retries start from scratch.
     def retry
       if @job.retry
+        audit :retry_job, job_id: @job.id, class_name: @job.class_name
         redirect_back_with notice: "Job ##{@job.id} was enqueued again."
       else
         redirect_back_with alert: "Job ##{@job.id} has not failed, there is nothing to retry."
@@ -34,6 +35,7 @@ module SolidQueuePanel
           @job.update!(scheduled_at: Time.current)
         end
 
+        audit :dispatch_job_now, job_id: @job.id, class_name: @job.class_name
         redirect_back_with notice: "Job ##{@job.id} is due now and will be dispatched shortly."
       else
         redirect_back_with alert: "Job ##{@job.id} is not scheduled."
@@ -42,6 +44,7 @@ module SolidQueuePanel
 
     def destroy
       discard(@job)
+      audit :discard_job, job_id: @job.id, class_name: @job.class_name
       redirect_to jobs_path(query_params), notice: "Job ##{@job.id} was discarded."
     rescue SolidQueue::Execution::UndiscardableError => error
       redirect_back_with alert: error.message
@@ -63,6 +66,7 @@ module SolidQueuePanel
     def run_all
       result = RunAllJobs.new(JobsQuery.new(**query_params)).run
 
+      audit :run_all_jobs, status: result.status, count: result.count, queue_name: query_params[:queue_name]
       redirect_to jobs_path(query_params), notice: run_all_notice(result)
     end
 
@@ -79,6 +83,7 @@ module SolidQueuePanel
     def remove_duplicates
       result = DuplicateJobs.new(queue_name: params[:queue_name]).discard_all
 
+      audit :remove_duplicate_jobs, queue_name: params[:queue_name], discarded: result.discarded, scanned: result.scanned
       redirect_to jobs_path(status: "queued", queue_name: params[:queue_name].presence),
                   notice: duplicates_notice(result)
     end
@@ -123,18 +128,23 @@ module SolidQueuePanel
         params.permit(:status, :queue_name, :search).to_h.symbolize_keys
       end
 
+      # The ids are read before the retry, not after: retrying clears the failed
+      # executions the relation selects on, so afterwards there is nothing left
+      # to name in the audit trail.
       def retried_notice(jobs)
         retryable = jobs.joins(:failed_execution)
-        count = retryable.count
-        SolidQueue::FailedExecution.retry_all(retryable) if count.positive?
+        ids = retryable.ids
+        SolidQueue::FailedExecution.retry_all(retryable) if ids.any?
 
-        "#{helpers.pluralize(count, "job")} enqueued again."
+        audit :bulk_retry_jobs, count: ids.size, job_ids: ids.join(",")
+        "#{helpers.pluralize(ids.size, "job")} enqueued again."
       end
 
       def discarded_notice(jobs)
-        count = jobs.to_a.count { |job| discard_ignoring_running(job) }
+        discarded = jobs.to_a.select { |job| discard_ignoring_running(job) }
 
-        "#{helpers.pluralize(count, "job")} discarded."
+        audit :bulk_discard_jobs, count: discarded.size, job_ids: discarded.map(&:id).join(",")
+        "#{helpers.pluralize(discarded.size, "job")} discarded."
       end
 
       def discard_ignoring_running(job)

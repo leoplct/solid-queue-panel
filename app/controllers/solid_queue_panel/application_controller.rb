@@ -3,6 +3,7 @@
 module SolidQueuePanel
   class ApplicationController < SolidQueuePanel.configuration.base_controller_class.constantize
     include Authentication
+    include Auditing
 
     layout "solid_queue_panel/application"
 

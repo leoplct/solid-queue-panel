@@ -267,6 +267,105 @@ advice:
 It never includes credentials, and it is built when you press the button rather than every time the
 page refreshes.
 
+## Sensitive payloads and the audit trail
+
+The panel reads the tables Solid Queue already has, so the only data it shows
+that belongs to your application rather than to the queue is what you passed to
+`perform_later`. Two settings decide how much of it anybody watching the queue
+gets to see, and everything the panel can change is written down.
+
+### What is filtered
+
+Payloads are filtered by key, exactly the way Rails already filters its own
+logs, reusing your application's `config.filter_parameters`:
+
+```ruby
+# Nothing to do: a key worth hiding from the log is hidden here too.
+# WelcomeJob.perform_later(42, email: "someone@example.com", plan: "pro")
+# shows as 42, {"email": "[FILTERED]", "plan": "pro"}
+```
+
+Override it with a list of your own, or empty it to show payloads exactly as
+they are stored:
+
+```ruby
+config.filter_parameters = [ :email, :ssn, /patient/ ]
+```
+
+Filtering is by key, which is its limit: an argument passed as a bare value has
+nothing naming it, so `WelcomeJob.perform_later("someone@example.com")` cannot
+be filtered. When the payloads next to your queue are ones nobody should read,
+show none of them:
+
+```ruby
+config.hide_job_arguments = true   # the payload reads [HIDDEN], lists show no arguments
+```
+
+> [!NOTE]
+> Filtering covers payloads, not the message and backtrace of a failed job:
+> exceptions routinely quote the value that caused them, and no filter can find
+> it in free text. A panel that must not show application data at all belongs
+> behind `read_only` and your own authentication, with `hide_job_arguments` set.
+
+### What is written down
+
+Every action that changes something — retry, discard, bulk actions, run all,
+remove duplicates, pause, resume, clear, prune — is written to the audit logger,
+which is your application logger unless you point it elsewhere:
+
+```
+[SolidQueuePanel] action=clear_queue actor=alice@example.com ip=10.0.0.4 queue_name=default
+```
+
+Each entry is also published as an `ActiveSupport::Notifications` event, for
+audit trails that do not live in a log file:
+
+```ruby
+ActiveSupport::Notifications.subscribe(SolidQueuePanel::Audit::EVENT) do |*, entry|
+  AuditEntry.create!(entry)
+end
+```
+
+The actor is whatever `config.audit_actor` returns:
+
+```ruby
+config.audit_actor { current_user&.email }
+```
+
+Without it the panel records how the request was authenticated — `shared
+credentials`, `application authentication`, `unauthenticated` — rather than
+naming somebody it cannot identify.
+
+### One password identifies nobody
+
+The built-in sign in form is one username and one password for everybody, which
+is enough to keep a panel off the public internet and not enough to say who did
+what. Where that matters — where an auditor will ask, or where the rules require
+each person to be told apart — mount the panel behind the authentication your
+application already has, and name the actor:
+
+```ruby
+# config/initializers/solid_queue_panel.rb
+config.username = nil
+config.password = nil
+config.authenticate_with { redirect_to(main_app.root_path) unless current_user&.admin? }
+config.audit_actor { current_user.email }
+```
+
+That, `hide_job_arguments`, and `read_only` where the panel only needs watching,
+are the three settings behind any claim about who can see or change what. The
+panel makes no outbound requests and sends nothing anywhere, so what it shows is
+bounded by who can reach the URL.
+
+### What the panel stores
+
+Only the optional resource metrics tables, and only measurements: how long a job
+class ran, how much CPU and memory it used. Arguments are never stored. Runs are
+told apart by a truncated SHA-256 of the serialized arguments, which is a
+pseudonym rather than an anonymous value — a small, guessable set of arguments
+can be recognised by hashing candidates — and rows are pruned after
+`config.resource_retention`, three days by default.
+
 ## Resource metrics
 
 The panel can measure how much memory and CPU Solid Queue is actually using, on every machine, and
@@ -361,6 +460,20 @@ SolidQueuePanel.configure do |config|
 
   # Hide and refuse every destructive action.
   config.read_only = false
+
+  # Keys whose values are replaced with [FILTERED] in every payload shown.
+  # Nil means the application's own config.filter_parameters.
+  config.filter_parameters = nil
+
+  # Show no job arguments at all, anywhere.
+  config.hide_job_arguments = false
+
+  # Where the audit trail of every action that changes something is written.
+  # Nil means the application logger.
+  config.audit_logger = nil
+
+  # Names whoever is behind a request in the audit trail.
+  # config.audit_actor { current_user&.email }
 
   # Periods (in hours) offered by the dashboard and metrics time filters.
   config.time_periods = [ 1, 6, 24, 24 * 7 ]

@@ -18,6 +18,7 @@ module SolidQueuePanel
     # they had claimed, exactly like the supervisor does on its own schedule.
     def prune
       SolidQueue::Process.prune
+      audit :prune_processes
       redirect_to processes_path, notice: "Dead processes were pruned."
     end
   end

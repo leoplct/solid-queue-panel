@@ -38,9 +38,12 @@ module SolidQueuePanel
       ]
     end
 
-    # The Active Job payload as stored by Solid Queue, pretty printed.
+    # The Active Job payload as stored by Solid Queue, pretty printed, with
+    # whatever the application filters out of its logs filtered out of here too.
     def job_payload(job)
-      JSON.pretty_generate(job.arguments)
+      filtered = payload_filter.payload(job.arguments)
+
+      filtered.is_a?(String) ? filtered : JSON.pretty_generate(filtered)
     rescue StandardError
       job.arguments.inspect
     end
@@ -52,9 +55,16 @@ module SolidQueuePanel
     end
 
     def arguments_summary(arguments, limit: 120)
+      arguments = payload_filter.arguments(arguments)
       return if arguments.blank?
 
       truncate(Array(arguments).map { |argument| argument.is_a?(Hash) ? argument.to_json : argument.inspect }.join(", "), length: limit)
+    end
+
+    # One filter per request, like the estimates below: the configured keys are
+    # compiled into regular expressions once rather than for every row.
+    def payload_filter
+      @payload_filter ||= PayloadFilter.new
     end
 
     def job_attempts(job)

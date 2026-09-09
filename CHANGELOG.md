@@ -6,6 +6,26 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Job payloads are filtered by key wherever they are shown, reusing the
+  application's `config.filter_parameters` by default, with
+  `config.filter_parameters` to override it and `config.hide_job_arguments` to
+  show none of them at all.
+- An audit trail: every action that changes something is written to
+  `config.audit_logger` and published as an `ActiveSupport::Notifications`
+  event, naming the actor `config.audit_actor` returns, or how the request was
+  authenticated when nothing can name a person.
+- A security policy, Dependabot, and a CI job checking dependencies against the
+  Ruby advisory database.
+
+### Fixed
+
+- Every page works again when the optional resource metrics tables were never
+  installed. Passing a `JobUsage` scope as an argument loaded the model's schema
+  before the guard inside the method ran, so applications without those tables
+  got `PG::UndefinedTable` on the dashboard and on the settings report.
+
 ## [0.1.0]
 
 ### Added
