@@ -26,6 +26,11 @@ module SolidQueuePanel
       badge(JobStatus.label(status), color: JobStatus.color(status), icon_name: STATUS_ICONS[status])
     end
 
+    # Finished has no counter, for the same reason All has none: the list is not
+    # bounded in time, and the only honest counter for it would be the whole
+    # table scan the panel exists to avoid. The heading of the list gives the
+    # real number once you are looking at it, and the dashboard keeps its own
+    # explicitly named "Finished 24h" column.
     def job_status_tabs
       [
         [ "all", "All", nil ],
@@ -34,7 +39,7 @@ module SolidQueuePanel
         [ "scheduled", "Scheduled", overview.scheduled ],
         [ "blocked", "Blocked", overview.blocked ],
         [ "failed", "Failed", overview.failed ],
-        [ "finished", "Finished", overview.finished ]
+        [ "finished", "Finished", nil ]
       ]
     end
 

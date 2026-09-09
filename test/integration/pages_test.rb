@@ -37,6 +37,20 @@ class PagesTest < SolidQueuePanel::IntegrationTestCase
     end
   end
 
+  # The Finished counter on the dashboard covers 24 hours, while the finished
+  # list is not bounded in time. Showing the first next to the second said "0"
+  # over a page listing nineteen jobs, so that tab carries no counter.
+  test "the finished tab shows no counter, since its list is not bounded in time" do
+    # One from the setup, plus one old enough that a 24 hour counter misses it.
+    create_job(status: :finished).update_columns(finished_at: 40.days.ago)
+
+    get panel.jobs_path(status: "finished")
+
+    assert_response :success
+    assert_select "a", text: /Finished\s*\d/, count: 0, message: "the tab must not carry a count its list does not match"
+    assert_select "h2", text: /Finished\s*\(2\)/, message: "the heading counts both, including the old one"
+  end
+
   test "dashboard shows the capacity of every queue" do
     create_process(metadata: { "queues" => "*", "thread_pool_size" => 5 })
 
